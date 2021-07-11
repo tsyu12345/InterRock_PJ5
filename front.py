@@ -1,7 +1,7 @@
-
+from scrap import Scraping
+import scrap
 import PySimpleGUI as sig
 from PySimpleGUI.PySimpleGUI import SaveAs, Text
-import scrap3
 import re
 import logging as log
 import threading as th
@@ -64,7 +64,7 @@ class Windows:
             self.event, self.value = self.win.read()
             area_list = self.value['pref_name'].split(",")
             print(area_list)
-            th1 = th.Thread(target=scrap3.main, args=(self.value['path'], area_list, self.value['store_class']))
+            th1 = th.Thread(target=main, args=(area_list, self.value['store_class'], self.value['path']), daemon=True)
             print(self.event, self.value)
             if self.event == 'エリア選択':
                 sub_win = SelectArea()
@@ -80,9 +80,9 @@ class Windows:
                 check = self.input_checker()
                 if check:
                     i += 1
-                    th1.setDaemon(True)
+                    #th1.setDaemon(True)
                     th1.start()
-                    count = 1
+                    #count = 1
                     #sub_event, sub_value = self.sub_win.read()
                     #self.sub_win['progbar'].update_bar(50)
                     cancel = sig.popup_cancel('抽出処理中です。これには数時間かかることがあります。\n中断するには’Cancelled’ボタンを押してください。')
@@ -168,8 +168,36 @@ class SelectArea:
         window.close()
         return self.pref
 
-main_win = Windows()
-main_win.display()
+class Job(Scraping):
+    def __init__(self, path):
+        super().__init__(path)
+        super().init_work_book()
+    
+    def URL_scraping(area_list, junle):
+        if junle == 'すべてのジャンル':
+            super().all_scrap(area_list)
+        else:
+            for area in area_list:
+                super().url_scrap(area, junle)
+    
+    def info_scraiping():
+        for r in range(2, super().sheet.max_row+1):
+            sig.OneLineProgressMeter("ただいま処理中です。これには数時間かかることがあります。", r, super().sheet.max_row)
+            super().info_scrap(r)
+        #finishing scrap
+        while scrap.check(super().path) == False:
+            scrap.apper_adjst(super().path)
+        sig.popup('お疲れ様でした。抽出終了です。ファイルを確認してください。\n保存先：' +
+                  super().path, keep_on_top=True)
+        
+def main(area_list, junle, path):
+    job = Job(path=path)
+    job.URL_scraping(area_list, junle)
+    job.info_scraiping()
+        
+if __name__ == '__main__':
+    main_win = Windows()
+    main_win.display()
 
 
 

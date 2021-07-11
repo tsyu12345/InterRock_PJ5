@@ -150,13 +150,13 @@ class Scraping():
         print("search complete")
         driver.quit()
 
-    def info_scrap(self, url, index):
-        conunter = 0
+    def info_scrap(self, index):
+        #conunter = 0
         driver = webdriver.Chrome(
             executable_path=self.driver_path, options=self.options
         )
         try:
-            driver.get(url)
+            driver.get(self.sheet.cell(row=index, column=8).value)
         except WebDriverException:
             print("retry...")
             for k in range(3):
