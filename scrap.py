@@ -20,7 +20,7 @@ class Scraping():
     RETRY = 3
     TIMEOUT = 15
 
-    def __init__(self, path, area, store_class):
+    def __init__(self, path):
         self.path = path
         # init driver
         self.driver_path = resource_path('chromedriver_win32/chromedriver.exe')
@@ -38,11 +38,10 @@ class Scraping():
         self.options.add_argument('--ignore-ssl-errors')
         prefs = {"profile.default_content_setting_values.notifications": 2}
         self.options.add_experimental_option("prefs", prefs)
-        browser_path = resource_path(
-            'Win_x64_857997_chrome-win/chrome-win/chrome.exe')
+        browser_path = resource_path('Win_x64_857997_chrome-win/chrome-win/chrome.exe')
         self.options.binary_location = browser_path
-        self.area = area
-        self.store_class = store_class
+        #self.area = area
+        #self.store_class = store_class
 
     def init_work_book(self):
         menu = [
@@ -83,26 +82,25 @@ class Scraping():
 
         self.book.save(self.path)
 
-    def all_scrap(self):  # 全件抽出
+    def all_scrap(self, area_list):  # 全件抽出
         class_menu = [
             "ヘアサロン",
             "ネイル・まつげサロン",
             "リラクサロン",
             "エステサロン",
         ]
-        for i in range(len(self.area)):
-            for st_class in class_menu:
-                self.store_class = st_class
-                area_name = self.area[i]
-                self.url_scrap(area_name)
+        for area in area_list:
+            for junle in class_menu:
+                self.url_scrap(area, junle)
+            print(area + "search complete.")
 
-    def url_scrap(self):
+    def url_scrap(self, area, store_junle):
         #MAX_RETRY = 3
         print("starting ChromeDriver.exe....")
         driver = webdriver.Chrome(
             executable_path=self.driver_path, options=self.options)
         driver.get("https://beauty.hotpepper.jp/top/")  # top page
-        sr_class = driver.find_element_by_link_text(self.store_class)
+        sr_class = driver.find_element_by_link_text(store_junle)#ジャンル選択
         sr_class.click()
         time.sleep(5)
         search = driver.find_element_by_css_selector('#freeWordSearch1')
@@ -122,10 +120,10 @@ class Scraping():
                 for a in links_list:
                     url = a.get('href')
                     r = self.sheet.max_row
-                    self.sheet.cell(row=r+1, column=1, value=self.store_class)
-                    self.sheet.cell(row=r+1, column=6, value=area)
-                    self.sheet.cell(row=r+1, column=8, value=url)
-                    print(self.sheet.cell(row=r+1, column=8).value)
+                    self.sheet.cell(row=r+1, column=1, value=self.store_class)#ジャンル
+                    self.sheet.cell(row=r+1, column=6, value=area)#エリア
+                    self.sheet.cell(row=r+1, column=8, value=url)#URL
+                    #print(self.sheet.cell(row=r+1, column=8).value)
                 try:
                     pre_url = driver.current_url
                     pre_index = i
@@ -152,7 +150,7 @@ class Scraping():
         print("search complete")
         driver.quit()
 
-    def info_scrap(self, url):
+    def info_scrap(self, url, index):
         conunter = 0
         driver = webdriver.Chrome(
             executable_path=self.driver_path, options=self.options
@@ -182,8 +180,6 @@ class Scraping():
             'div.mT30 > table > tbody > tr > td')
         table_menu = soup.select(
             'div.mT30 > table > tbody > tr > th')
-        print(table_menu)
-        print(table_value)
           # 住所の抽出（少々処理があるため別で書き出す）
         pref_tf = True
         for j, e in enumerate(table_menu):
@@ -194,10 +190,10 @@ class Scraping():
                 address_low = re.split(
                     '東京都|北海道|(?:京都|大阪)府|.{2,3}県', all_address)  # 県名とそれ以降を分離
                 prefecture = prefecture_search.group()  # 県名
-                if prefecture != self.sheet.cell(row=i, column=6).value:
-                    self.sheet.cell(row=i, column=8, value="")
-                    self.sheet.cell(row=i, column=6, value="")
-                    self.sheet.cell(row=i, column=1, value="")
+                if prefecture != self.sheet.cell(row=index, column=6).value:
+                    self.sheet.cell(row=index, column=8, value="")
+                    self.sheet.cell(row=index, column=6, value="")
+                    self.sheet.cell(row=index, column=1, value="")
                     pref_tf = False
                 jis_code = self.call_jis_code(prefecture)
                 municipality = address_low[1]  # それ以降
@@ -254,24 +250,24 @@ class Scraping():
                 slide_cnt = len(slide_img_tag)
 
                 # write Excel
-                self.sheet.cell(row=i, column=2, value=store_name)
-                self.sheet.cell(row=i, column=3, value=st_name_kana)
-                self.sheet.cell(row=i, column=4, value=tel_num)
-                self.sheet.cell(row=i, column=5, value=jis_code)
-                self.sheet.cell(row=i, column=6, value=prefecture)
-                self.sheet.cell(row=i, column=7, value=municipality)
-                self.sheet.cell(row=i, column=9, value=self.scrap_day())
-                self.sheet.cell(row=i, column=13, value=pankuzu)
-                self.sheet.cell(row=i, column=16, value=slide_cnt)
-                self.sheet.cell(row=i, column=17, value=catch_copy)
-                self.sheet.cell(row=i, column=14, value=head_img_yn)
+                self.sheet.cell(row=index, column=2, value=store_name)
+                self.sheet.cell(row=index, column=3, value=st_name_kana)
+                self.sheet.cell(row=index, column=4, value=tel_num)
+                self.sheet.cell(row=index, column=5, value=jis_code)
+                self.sheet.cell(row=index, column=6, value=prefecture)
+                self.sheet.cell(row=index, column=7, value=municipality)
+                self.sheet.cell(row=index, column=9, value=self.scrap_day())
+                self.sheet.cell(row=index, column=13, value=pankuzu)
+                self.sheet.cell(row=index, column=16, value=slide_cnt)
+                self.sheet.cell(row=index, column=17, value=catch_copy)
+                self.sheet.cell(row=index, column=14, value=head_img_yn)
                 # 他の情報処理
                 try:
                     for j in range(2, len(table_value)):
                         for c in range(1, self.sheet.max_column):
                             if table_menu[j].get_text() == self.sheet.cell(row=1, column=c).value:
                                 self.sheet.cell(
-                                    row=i, column=c, value=table_value[j].get_text())
+                                    row=index, column=c, value=table_value[j].get_text())
                                 break
                 except RuntimeError:
                     pass
@@ -348,9 +344,33 @@ class Scraping():
         return data_day
 
 
-def resource_path(relative_path):
+def resource_path(relative_path):#バイナリフィルのパスを提供
     try:
         base_path = sys._MEIPASS
     except Exception:
         base_path = os.path.dirname(__file__)
     return os.path.join(base_path, relative_path)
+
+def apper_adjst(path):#空白行を削除する
+    book = px.load_workbook(path)
+    sheet = book.worksheets[0]
+    for r in range(2, sheet.max_row+1):
+        print("check" + str(r))
+        if sheet.cell(row=r, column=1).value == "" or sheet.cell(row=r, column=1).value == None:
+            sheet.delete_rows(r)
+    book.save(path)
+
+def check(path):
+    book = px.load_workbook(path)
+    sheet = book.worksheets[0]
+    for r in range(2, sheet.max_row+1):
+        print("check" + str(r))
+        if sheet.cell(row=r, column=2).value in ("", " ", None):
+            fill =  PatternFill(patternType='solid', fgColor='ffff00')
+            sheet['B'+str(r)].fill = fill
+            sheet.cell(row=r, column=2, value='抽出不可')
+        if sheet.cell(row=r, column=1).value == "" or sheet.cell(row=r, column=1).value == None:
+            return False
+    return True
+
+
