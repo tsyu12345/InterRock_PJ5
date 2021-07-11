@@ -168,7 +168,7 @@ class Scraping():
                         executable_path=self.driver_path, options=self.options)
                     print('open browser...')
                     time.sleep(3)
-                    driver.get(self.sheet.cell(row=i, column=8).value)
+                    driver.get(self.sheet.cell(row=index, column=8).value)
                 except:
                     print('Error not Resolved')
                     continue
