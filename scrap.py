@@ -13,6 +13,7 @@ import sys
 import os
 import PySimpleGUI as sig
 
+
 class Scraping():
     book = px.Workbook()
     sheet = book.worksheets[0]
@@ -21,7 +22,7 @@ class Scraping():
 
     def __init__(self, path, area, store_class):
         self.path = path
-         # init driver
+        # init driver
         self.driver_path = resource_path('chromedriver_win32/chromedriver.exe')
         self.options = webdriver.ChromeOptions()
         self.options.add_argument("start-maximized")
@@ -42,7 +43,7 @@ class Scraping():
         self.options.binary_location = browser_path
         self.area = area
         self.store_class = store_class
-    
+
     def init_work_book(self):
         menu = [
             "ジャンル",
@@ -82,7 +83,7 @@ class Scraping():
 
         self.book.save(self.path)
 
-    def all_scrap(self):#全件抽出
+    def all_scrap(self):  # 全件抽出
         class_menu = [
             "ヘアサロン",
             "ネイル・まつげサロン",
@@ -138,7 +139,8 @@ class Scraping():
                 driver.quit()
                 time.sleep(10)
                 print("starting ChromeDriver.exe....")
-                driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
+                driver = webdriver.Chrome(
+                    executable_path=self.driver_path, options=self.options)
                 driver.get(pre_url)
                 next_btn = driver.find_element_by_link_text("次へ")
                 next_btn.click()
@@ -148,6 +150,136 @@ class Scraping():
                 pass
         self.book.save(self.path)
         print("search complete")
+        driver.quit()
+
+    def info_scrap(self, url):
+        conunter = 0
+        driver = webdriver.Chrome(
+            executable_path=self.driver_path, options=self.options
+        )
+        try:
+            driver.get(url)
+        except WebDriverException:
+            print("retry...")
+            for k in range(3):
+                try:
+                    time.sleep(10)
+                    print('restart browser...')
+                    driver.quit()
+                    driver = webdriver.Chrome(
+                        executable_path=self.driver_path, options=self.options)
+                    print('open browser...')
+                    time.sleep(3)
+                    driver.get(self.sheet.cell(row=i, column=8).value)
+                except:
+                    print('Error not Resolved')
+                    continue
+            else:
+                pass
+        html = driver.page_source
+        soup = bs(html, 'lxml')
+        table_value = soup.select(
+            'div.mT30 > table > tbody > tr > td')
+        table_menu = soup.select(
+            'div.mT30 > table > tbody > tr > th')
+        print(table_menu)
+        print(table_value)
+          # 住所の抽出（少々処理があるため別で書き出す）
+        pref_tf = True
+        for j, e in enumerate(table_menu):
+            if e.get_text() == "住所":
+                all_address = table_value[j].get_text()
+                prefecture_search = re.search(
+                    '東京都|北海道|(?:京都|大阪)府|.{2,3}県', all_address)
+                address_low = re.split(
+                    '東京都|北海道|(?:京都|大阪)府|.{2,3}県', all_address)  # 県名とそれ以降を分離
+                prefecture = prefecture_search.group()  # 県名
+                if prefecture != self.sheet.cell(row=i, column=6).value:
+                    self.sheet.cell(row=i, column=8, value="")
+                    self.sheet.cell(row=i, column=6, value="")
+                    self.sheet.cell(row=i, column=1, value="")
+                    pref_tf = False
+                jis_code = self.call_jis_code(prefecture)
+                municipality = address_low[1]  # それ以降
+                break
+        print("都道府県：" + prefecture)
+        print("市区町村番地：" + municipality)
+        # 指定エリアでないとき、下記処理を行わない
+        try:
+            if pref_tf:
+                store_name_tag = soup.select_one('p.detailTitle > a')
+                store_name = store_name_tag.get_text()
+                print("店名：" + store_name)
+                st_name_kana_tag = soup.select_one(
+                    'div > p.fs10.fgGray')
+                st_name_kana = st_name_kana_tag.get_text()
+                print("店名カナ：" + st_name_kana)
+                try:
+                    tel_tag = soup.select_one(
+                        'div.mT30 > table > tbody > tr > td > a')
+                    tel_url = tel_tag.get('href')
+                    respons_tel = rq.get(tel_url)
+                    html_tel = respons_tel.text
+                    soup_tel = bs(html_tel, 'lxml')
+                    tel_num_tag = soup_tel.select_one(
+                        'table > tr > td')
+                    tel_num = tel_num_tag.get_text()
+                    tel_num = str(tel_num)
+                    tel_num = tel_num.replace(' ', "")
+                    print("TEL : " + tel_num)
+                except:
+                    tel_num = ""
+                    pass
+                    # ヘッダー画像の有無
+                try:
+                    driver.find_element_by_css_selector(
+                        'div.slnHeaderSliderPhoto.jscViewerPhoto')
+                    head_img_yn = "有"
+                    # self.sheet.cell(row=index, column=14, value="有")
+                except NoSuchElementException:
+                    head_img_yn = "無"
+                    # self.sheet.cell(row=index, column=14, value="無")
+                    pass
+                catch_copy_tag = soup.select_one('div > p > b > strong')
+                catch_copy = catch_copy_tag.get_text()
+
+                pankuzu_tag = soup.select('#preContents > ol > li')
+                pankuzu = ""
+                for pan in pankuzu_tag:
+                    pankuzu += pan.get_text()
+                print(pankuzu)
+
+                slide_img_tag = soup.select(
+                    'div.slnTopImgCarouselWrap.jscThumbWrap > ul > li')
+                slide_cnt = len(slide_img_tag)
+
+                # write Excel
+                self.sheet.cell(row=i, column=2, value=store_name)
+                self.sheet.cell(row=i, column=3, value=st_name_kana)
+                self.sheet.cell(row=i, column=4, value=tel_num)
+                self.sheet.cell(row=i, column=5, value=jis_code)
+                self.sheet.cell(row=i, column=6, value=prefecture)
+                self.sheet.cell(row=i, column=7, value=municipality)
+                self.sheet.cell(row=i, column=9, value=self.scrap_day())
+                self.sheet.cell(row=i, column=13, value=pankuzu)
+                self.sheet.cell(row=i, column=16, value=slide_cnt)
+                self.sheet.cell(row=i, column=17, value=catch_copy)
+                self.sheet.cell(row=i, column=14, value=head_img_yn)
+                # 他の情報処理
+                try:
+                    for j in range(2, len(table_value)):
+                        for c in range(1, self.sheet.max_column):
+                            if table_menu[j].get_text() == self.sheet.cell(row=1, column=c).value:
+                                self.sheet.cell(
+                                    row=i, column=c, value=table_value[j].get_text())
+                                break
+                except RuntimeError:
+                    pass
+            else:
+                print("prefname is False")
+        except:
+            #self.book_save()
+            pass
         driver.quit()
 
     def call_jis_code(self, key):
@@ -222,4 +354,3 @@ def resource_path(relative_path):
     except Exception:
         base_path = os.path.dirname(__file__)
     return os.path.join(base_path, relative_path)
-    
