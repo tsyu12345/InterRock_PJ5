@@ -1,0 +1,225 @@
+from selenium import webdriver
+from selenium.common.exceptions import InvalidArgumentException, InvalidSwitchToTargetException, NoSuchElementException, TimeoutException, WebDriverException
+from selenium.webdriver.common.keys import Keys
+import openpyxl as px
+from openpyxl.styles import PatternFill
+from bs4 import BeautifulSoup as bs
+import time
+import datetime
+import re
+import requests as rq
+import threading as th
+import sys
+import os
+import PySimpleGUI as sig
+
+class Scraping():
+    book = px.Workbook()
+    sheet = book.worksheets[0]
+    RETRY = 3
+    TIMEOUT = 15
+
+    def __init__(self, path, area, store_class):
+        self.path = path
+         # init driver
+        self.driver_path = resource_path('chromedriver_win32/chromedriver.exe')
+        self.options = webdriver.ChromeOptions()
+        self.options.add_argument("start-maximized")
+        self.options.add_argument("enable-automation")
+        self.options.add_argument("--headless")
+        self.options.add_argument("--no-sandbox")
+        self.options.add_argument("--disable-infobars")
+        self.options.add_argument('--disable-extensions')
+        self.options.add_argument("--disable-dev-shm-usage")
+        self.options.add_argument("--disable-browser-side-navigation")
+        self.options.add_argument("--disable-gpu")
+        self.options.add_argument('--ignore-certificate-errors')
+        self.options.add_argument('--ignore-ssl-errors')
+        prefs = {"profile.default_content_setting_values.notifications": 2}
+        self.options.add_experimental_option("prefs", prefs)
+        browser_path = resource_path(
+            'Win_x64_857997_chrome-win/chrome-win/chrome.exe')
+        self.options.binary_location = browser_path
+        self.area = area
+        self.store_class = store_class
+    
+    def init_work_book(self):
+        menu = [
+            "ジャンル",
+            "店舗名",
+            "店舗名カナ",
+            "電話番号",
+            "都道府県コード",
+            "都道府県",
+            "市区町村・番地",
+            "店舗URL",
+            "詳細データ取得日",
+            "料金プラン着地",
+            "月額料金",
+            "お店のホームページ",
+            "パンくず",
+            "ヘッダー画像有無",
+            "こだわり有無",
+            "スライド画像数",
+            "キャッチコピー",
+            "アクセス・道案内",
+            "営業時間",
+            "定休日",
+            "支払い方法",
+            "設備",
+            "カット価格",
+            "席数",
+            "スタッフ数",
+            "駐車場",
+            "こだわり条件",
+            "備考",
+            "スタッフ募集",
+            "最終更新日"
+        ]
+        for c in range(1, 30+1):
+            self.sheet.cell(row=1, column=c, value=menu[c-1])
+        self.sheet.freeze_panes = "A2"
+
+        self.book.save(self.path)
+
+    def all_scrap(self):#全件抽出
+        class_menu = [
+            "ヘアサロン",
+            "ネイル・まつげサロン",
+            "リラクサロン",
+            "エステサロン",
+        ]
+        for i in range(len(self.area)):
+            for st_class in class_menu:
+                self.store_class = st_class
+                area_name = self.area[i]
+                self.url_scrap(area_name)
+
+    def url_scrap(self):
+        #MAX_RETRY = 3
+        print("starting ChromeDriver.exe....")
+        driver = webdriver.Chrome(
+            executable_path=self.driver_path, options=self.options)
+        driver.get("https://beauty.hotpepper.jp/top/")  # top page
+        sr_class = driver.find_element_by_link_text(self.store_class)
+        sr_class.click()
+        time.sleep(5)
+        search = driver.find_element_by_css_selector('#freeWordSearch1')
+        search.send_keys(self.area + Keys.ENTER)
+        time.sleep(2)
+        result_pages = driver.find_element_by_css_selector(
+            'p.pa.bottom0.right0').text
+        page_num = re.split('[/ ]', result_pages)
+        pages = re.sub(r"\D", "", page_num[1])
+        print("pages : " + pages)
+        for i in range(int(pages)):
+            sig.OneLineProgressMeter("URL取得中...", i, int(pages))
+            try:
+                html = driver.page_source
+                soup = bs(html, 'lxml')
+                links_list = soup.select("div.slcHeadContentsInner > h3 > a")
+                for a in links_list:
+                    url = a.get('href')
+                    r = self.sheet.max_row
+                    self.sheet.cell(row=r+1, column=1, value=self.store_class)
+                    self.sheet.cell(row=r+1, column=6, value=area)
+                    self.sheet.cell(row=r+1, column=8, value=url)
+                    print(self.sheet.cell(row=r+1, column=8).value)
+                try:
+                    pre_url = driver.current_url
+                    pre_index = i
+                    next_btn = driver.find_element_by_link_text("次へ")
+                    next_btn.click()
+                    time.sleep(1)
+                except NoSuchElementException:
+                    break
+            except (WebDriverException, TimeoutException):
+                self.book.save(self.path)
+                driver.quit()
+                time.sleep(10)
+                print("starting ChromeDriver.exe....")
+                driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
+                driver.get(pre_url)
+                next_btn = driver.find_element_by_link_text("次へ")
+                next_btn.click()
+                time.sleep(1)
+                continue
+            else:
+                pass
+        self.book.save(self.path)
+        print("search complete")
+        driver.quit()
+
+    def call_jis_code(self, key):
+        pref_jiscode = {
+            "北海道": '01',
+            "青森県": '02',
+            "岩手県": '03',
+            "宮城県": '04',
+            "秋田県": '05',
+            "山形県": '06',
+            "福島県": '07',
+            "茨城県": '08',
+            "栃木県": '09',
+            "群馬県": 10,
+            "埼玉県": 11,
+            "千葉県": 12,
+            "東京都": 13,
+            "神奈川県": 14,
+            "新潟県": 15,
+            "富山県": 16,
+            "石川県": 17,
+            "福井県": 18,
+            "山梨県": 19,
+            "長野県": 20,
+            "岐阜県": 21,
+            "静岡県": 22,
+            "愛知県": 23,
+            "三重県": 24,
+            "滋賀県": 25,
+            "京都府": 26,
+            "大阪府": 27,
+            "兵庫県": 28,
+            "奈良県": 29,
+            "和歌山県": 30,
+            "鳥取県": 31,
+            "島根県": 32,
+            "岡山県": 33,
+            "広島県": 34,
+            "山口県": 35,
+            "徳島県": 36,
+            "香川県": 37,
+            "愛媛県": 38,
+            "高知県": 39,
+            "福岡県": 40,
+            "佐賀県": 41,
+            "長崎県": 42,
+            "熊本県": 43,
+            "大分県": 44,
+            "宮崎県": 45,
+            "鹿児島県": 46,
+            "沖縄県": 47
+        }
+        code = pref_jiscode[key]
+        print(code)
+        return code
+
+    def scrap_day(self):
+        dt_now = datetime.datetime.now()
+        year = str(dt_now.year)
+        month = str(dt_now.month)
+        day = str(dt_now.day)
+        hour = str(dt_now.hour)
+        min = str(dt_now.minute)
+        data_day = year + "," + month + day + "," + hour + min
+        print(data_day)
+        return data_day
+
+
+def resource_path(relative_path):
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.dirname(__file__)
+    return os.path.join(base_path, relative_path)
+    
