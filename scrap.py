@@ -1,5 +1,6 @@
 from selenium import webdriver
 from selenium.common.exceptions import InvalidArgumentException, InvalidSwitchToTargetException, NoSuchElementException, TimeoutException, WebDriverException
+from selenium.webdriver.chrome.webdriver import WebDriver
 from selenium.webdriver.common.keys import Keys
 import openpyxl as px
 from openpyxl.styles import PatternFill
@@ -40,6 +41,7 @@ class Scraping():
         self.options.add_experimental_option("prefs", prefs)
         browser_path = resource_path('Win_x64_857997_chrome-win/chrome-win/chrome.exe')
         self.options.binary_location = browser_path
+        self.driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
         #self.area = area
         #self.store_class = store_class
 
@@ -97,16 +99,15 @@ class Scraping():
     def url_scrap(self, area, store_junle):
         #MAX_RETRY = 3
         print("starting ChromeDriver.exe....")
-        driver = webdriver.Chrome(
-            executable_path=self.driver_path, options=self.options)
-        driver.get("https://beauty.hotpepper.jp/top/")  # top page
-        sr_class = driver.find_element_by_link_text(store_junle)#ジャンル選択
+        
+        self.driver.get("https://beauty.hotpepper.jp/top/")  # top page
+        sr_class = self.driver.find_element_by_link_text(store_junle)#ジャンル選択
         sr_class.click()
         time.sleep(5)
-        search = driver.find_element_by_css_selector('#freeWordSearch1')
-        search.send_keys(self.area + Keys.ENTER)
+        search = self.driver.find_element_by_css_selector('#freeWordSearch1')
+        search.send_keys(area + Keys.ENTER)
         time.sleep(2)
-        result_pages = driver.find_element_by_css_selector(
+        result_pages = self.driver.find_element_by_css_selector(
             'p.pa.bottom0.right0').text
         page_num = re.split('[/ ]', result_pages)
         pages = re.sub(r"\D", "", page_num[1])
@@ -114,33 +115,33 @@ class Scraping():
         for i in range(int(pages)):
             sig.OneLineProgressMeter("URL取得中...", i, int(pages))
             try:
-                html = driver.page_source
+                html = self.driver.page_source
                 soup = bs(html, 'lxml')
                 links_list = soup.select("div.slcHeadContentsInner > h3 > a")
                 for a in links_list:
                     url = a.get('href')
                     r = self.sheet.max_row
-                    self.sheet.cell(row=r+1, column=1, value=self.store_class)#ジャンル
+                    self.sheet.cell(row=r+1, column=1, value=store_junle)#ジャンル
                     self.sheet.cell(row=r+1, column=6, value=area)#エリア
                     self.sheet.cell(row=r+1, column=8, value=url)#URL
                     #print(self.sheet.cell(row=r+1, column=8).value)
                 try:
-                    pre_url = driver.current_url
+                    pre_url = self.driver.current_url
                     pre_index = i
-                    next_btn = driver.find_element_by_link_text("次へ")
+                    next_btn = self.driver.find_element_by_link_text("次へ")
                     next_btn.click()
                     time.sleep(1)
                 except NoSuchElementException:
                     break
             except (WebDriverException, TimeoutException):
                 self.book.save(self.path)
-                driver.quit()
+                self.driver.quit()
                 time.sleep(10)
                 print("starting ChromeDriver.exe....")
-                driver = webdriver.Chrome(
+                self.driver = webdriver.Chrome(
                     executable_path=self.driver_path, options=self.options)
-                driver.get(pre_url)
-                next_btn = driver.find_element_by_link_text("次へ")
+                self.driver.get(pre_url)
+                next_btn = self.driver.find_element_by_link_text("次へ")
                 next_btn.click()
                 time.sleep(1)
                 continue
@@ -148,33 +149,30 @@ class Scraping():
                 pass
         self.book.save(self.path)
         print("search complete")
-        driver.quit()
+        self.driver.close()
 
     def info_scrap(self, index):
         #conunter = 0
-        driver = webdriver.Chrome(
-            executable_path=self.driver_path, options=self.options
-        )
         try:
-            driver.get(self.sheet.cell(row=index, column=8).value)
+            self.driver.get(self.sheet.cell(row=index, column=8).value)
         except WebDriverException:
             print("retry...")
             for k in range(3):
                 try:
                     time.sleep(10)
                     print('restart browser...')
-                    driver.quit()
-                    driver = webdriver.Chrome(
+                    self.driver.quit()
+                    self.driver = webdriver.Chrome(
                         executable_path=self.driver_path, options=self.options)
                     print('open browser...')
                     time.sleep(3)
-                    driver.get(self.sheet.cell(row=index, column=8).value)
+                    self.driver.get(self.sheet.cell(row=index, column=8).value)
                 except:
                     print('Error not Resolved')
                     continue
-            else:
-                pass
-        html = driver.page_source
+        else:
+            pass
+        html = self.driver.page_source
         soup = bs(html, 'lxml')
         table_value = soup.select(
             'div.mT30 > table > tbody > tr > td')
@@ -228,7 +226,7 @@ class Scraping():
                     pass
                     # ヘッダー画像の有無
                 try:
-                    driver.find_element_by_css_selector(
+                    self.driver.find_element_by_css_selector(
                         'div.slnHeaderSliderPhoto.jscViewerPhoto')
                     head_img_yn = "有"
                     # self.sheet.cell(row=index, column=14, value="有")
@@ -276,7 +274,7 @@ class Scraping():
         except:
             #self.book_save()
             pass
-        driver.quit()
+        
 
     def call_jis_code(self, key):
         pref_jiscode = {
@@ -373,4 +371,15 @@ def check(path):
             return False
     return True
 
-
+if __name__ == "__main__":
+    job = Scraping('./kouti_test.xlsx')
+    job.url_scrap('高知県', 'ヘアサロン')
+    for r in range(2, job.sheet.max_row+1):
+        sig.OneLineProgressMeter("処理中です。しばらくお待ちください。", r, job.sheet.max_row)
+        job.info_scrap(r)
+    job.book.save('./kouti_test.xlsx')
+    job.driver.quit()
+    while check('./kouti_test.xlsx') == False:
+        apper_adjst('./kouti_test.xlsx')
+        job.book.save('./kouti_test.xlsx')
+    
