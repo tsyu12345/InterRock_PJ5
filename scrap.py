@@ -149,7 +149,7 @@ class Scraping():
                 pass
         self.book.save(self.path)
         print("search complete")
-        self.driver.close()
+        #self.driver.close()
 
     def info_scrap(self, index):
         #conunter = 0
@@ -354,6 +354,7 @@ def apper_adjst(path):#空白行を削除する
     sheet = book.worksheets[0]
     for r in range(2, sheet.max_row+1):
         print("check" + str(r))
+        #sig.OneLineProgressMeter('内容チェック中...', r-1, sheet.max_row-1, args="データの内容をチェック中...です。")
         if sheet.cell(row=r, column=1).value == "" or sheet.cell(row=r, column=1).value == None:
             sheet.delete_rows(r)
     book.save(path)
@@ -363,6 +364,7 @@ def check(path):
     sheet = book.worksheets[0]
     for r in range(2, sheet.max_row+1):
         print("check" + str(r))
+        sig.OneLineProgressMeter('内容チェック中...', r-1, sheet.max_row-1)
         if sheet.cell(row=r, column=2).value in ("", " ", None):
             fill =  PatternFill(patternType='solid', fgColor='ffff00')
             sheet['B'+str(r)].fill = fill

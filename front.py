@@ -180,10 +180,12 @@ class Job(Scraping):
             for area in area_list:
                 super().url_scrap(area, junle)
     
-    def info_scraiping():
+    def info_scraiping(self):
+        
         for r in range(2, super().sheet.max_row+1):
-            sig.OneLineProgressMeter("ただいま処理中です。これには数時間かかることがあります。", r, super().sheet.max_row)
+            sig.OneLineProgressMeter("ただいま処理中です。これには数時間かかることがあります。", r-1, super().sheet.max_row-1)
             super().info_scrap(r)
+        super().book.save(super().path)
         #finishing scrap
         while scrap.check(super().path) == False:
             scrap.apper_adjst(super().path)
