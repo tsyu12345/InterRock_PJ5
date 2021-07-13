@@ -28,7 +28,7 @@ class Scraping():
         self.options = webdriver.ChromeOptions()
         self.options.add_argument("start-maximized")
         self.options.add_argument("enable-automation")
-        self.options.add_argument("--headless")
+        #self.options.add_argument("--headless")
         self.options.add_argument("--no-sandbox")
         self.options.add_argument("--disable-infobars")
         self.options.add_argument('--disable-extensions')
@@ -113,7 +113,7 @@ class Scraping():
         pages = re.sub(r"\D", "", page_num[1])
         print("pages : " + pages)
         for i in range(int(pages)):
-            sig.OneLineProgressMeter("URL取得中...", i, int(pages))
+            sig.OneLineProgressMeter("処理中です...", i, int(pages), 'prog', "ただいま["+ area +","+ store_junle + "]の店舗URL収集中です。" + "しばらくお待ちください。")
             try:
                 html = self.driver.page_source
                 soup = bs(html, 'lxml')

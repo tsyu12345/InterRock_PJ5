@@ -64,7 +64,6 @@ class Windows:
             self.event, self.value = self.win.read()
             area_list = self.value['pref_name'].split(",")
             print(area_list)
-            th1 = th.Thread(target=main, args=(area_list, self.value['store_class'], self.value['path']), daemon=True)
             print(self.event, self.value)
             if self.event == 'エリア選択':
                 sub_win = SelectArea()
@@ -81,6 +80,7 @@ class Windows:
                 if check:
                     i += 1
                     #th1.setDaemon(True)
+                    th1 = th.Thread(target=main, args=(area_list, self.value['store_class'], self.value['path'],), daemon=True)
                     th1.start()
                     #count = 1
                     #sub_event, sub_value = self.sub_win.read()
@@ -88,6 +88,7 @@ class Windows:
                     cancel = sig.popup_cancel('抽出処理中です。これには数時間かかることがあります。\n中断するには’Cancelled’ボタンを押してください。')
                     print(cancel)
                     if cancel in ('Cancelled', None):
+                        
                         sys.exit()
             #th1.join()
                     self.done = True
@@ -173,7 +174,7 @@ class Job(Scraping):
         super().__init__(path)
         super().init_work_book()
     
-    def URL_scraping(area_list, junle):
+    def URL_scraping(self, area_list, junle):
         if junle == 'すべてのジャンル':
             super().all_scrap(area_list)
         else:
@@ -193,7 +194,9 @@ class Job(Scraping):
                   super().path, keep_on_top=True)
         
 def main(area_list, junle, path):
-    job = Job(path=path)
+    job = Job(path)
+    print(area_list)
+    print(junle)
     job.URL_scraping(area_list, junle)
     job.info_scraiping()
         
