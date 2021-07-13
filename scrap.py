@@ -42,6 +42,8 @@ class Scraping():
         browser_path = resource_path('Win_x64_857997_chrome-win/chrome-win/chrome.exe')
         self.options.binary_location = browser_path
         self.driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
+        self.counter = 0
+        self.page_count = 1
         #self.area = area
         #self.store_class = store_class
 
@@ -112,8 +114,9 @@ class Scraping():
         page_num = re.split('[/ ]', result_pages)
         pages = re.sub(r"\D", "", page_num[1])
         print("pages : " + pages)
+        self.page_count = int(pages)
         for i in range(int(pages)):
-            sig.OneLineProgressMeter("処理中です...", i, int(pages), 'prog', "ただいま["+ area +","+ store_junle + "]の店舗URL収集中です。" + "しばらくお待ちください。")
+            #sig.OneLineProgressMeter("掲載URLの抽出中...", self.counter, int(pages))
             try:
                 html = self.driver.page_source
                 soup = bs(html, 'lxml')
@@ -147,6 +150,8 @@ class Scraping():
                 continue
             else:
                 pass
+            self.counter += 1
+
         self.book.save(self.path)
         print("search complete")
         #self.driver.close()

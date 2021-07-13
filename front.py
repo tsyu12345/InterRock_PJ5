@@ -1,14 +1,12 @@
 from scrap import Scraping
 import scrap
 import PySimpleGUI as sig
-from PySimpleGUI.PySimpleGUI import SaveAs, Text
+from PySimpleGUI.PySimpleGUI import SaveAs, T, Text
 import re
-import logging as log
-import threading as th
 import sys
+from concurrent.futures import ThreadPoolExecutor as TPE
 
 class Windows:
-
     def __init__(self):
         # window tema
         sig.theme('BluePurple')
@@ -58,12 +56,12 @@ class Windows:
     def display(self):
         self.win = sig.Window("HotPepperBeautyスクレイピングツール", self.layout(), icon="icon2.ico")
         #self.sub_win = sig.Window("抽出実行", self.pop_layout(), icon="icon2.ico")
-        count = 0
-        i = 0
+        running = False
+        comp_flg = False
+        detati = False
+        executer = TPE(max_workers=2)
         while True:
             self.event, self.value = self.win.read()
-            area_list = self.value['pref_name'].split(",")
-            print(area_list)
             print(self.event, self.value)
             if self.event == 'エリア選択':
                 sub_win = SelectArea()
@@ -75,32 +73,56 @@ class Windows:
                     else:
                         add += self.pref_list[i] + ","
                 self.win['pref_name'].update(add)
+            
             if self.event == '抽出実行':
                 check = self.input_checker()
                 if check:
-                    i += 1
-                    #th1.setDaemon(True)
-                    th1 = th.Thread(target=main, args=(area_list, self.value['store_class'], self.value['path'],), daemon=True)
-                    th1.start()
-                    #count = 1
-                    #sub_event, sub_value = self.sub_win.read()
-                    #self.sub_win['progbar'].update_bar(50)
-                    cancel = sig.popup_cancel('抽出処理中です。これには数時間かかることがあります。\n中断するには’Cancelled’ボタンを押してください。')
-                    print(cancel)
-                    if cancel in ('Cancelled', None):
+                    area_list = self.value['pref_name'].split(",")
+                    job = Job(self.value['path'], area_list, self.value['store_class'])
+                    future = executer.submit(job.run,)
+                    running = True
+                    while running:
+                        cancel = True
+                        if job.url_scrap_flg:
+                            try:
+                                cancel = sig.OneLineProgressMeter("処理中です...", job.scrap.counter, job.scrap.page_count, 'prog',"掲載URLを抽出しています。しばらくお待ちください。")
+                            except TypeError:
+                                cancel = sig.OneLineProgressMeter("処理中です...", 0, 1, 'prog', "現在準備中です。")
+                        #cancel = sig.popup_cancel('抽出処理中です。これには数時間かかることがあります。\n中断するには’Cancelled’ボタンを押してください。')
+                        elif job.info_scrap_flg:
+                            try:
+                                cancel = sig.OneLineProgressMeter("処理中です...", job.scrap_cnt, job.scrap.sheet.max_row-1, 'prog',"店舗情報を抽出しています。\nこれには数時間かかることがあります。")
+                            except TypeError:
+                                cancel = sig.OneLineProgressMeter("処理中です...", 0, 1, 'prog', "現在準備中です。")
+
+                        if cancel == False:
+                            detati = True
+                            running = False
                         
-                        sys.exit()
-            #th1.join()
-                    self.done = True
-                    #sig.popup('お疲れ様でした。抽出終了です。ファイルを確認してください。\n保存先：'+self.value['path'], keep_on_top=True)
+                        if job.end_flg:
+                            running = False
+                            comp_flg = True
+            if detati:
+                try:
+                    job.cancel()
+                    executer.shutdown(wait=True)
+                    sig.popup("処理を中断しました。途中保存ファイル先は下記です。\n" + self.value['path'])
+                except TypeError:
+                    pass
             #when window close
-            if self.event in ("Quit", None) or self.done:
+            if comp_flg:
+                executer.shutdown(wait=True)
+                sig.popup('お疲れ様でした。抽出中完了です。保存先を確認してください\n' + self.value['path'])
+                break
+
+            if self.event in ("Quit", None):
                 break
         self.win.close()
+        sys.exit(self)
 
     def input_checker(self):
         checker = [False, False, False]
-        if self.value['pref_name'] == "" :#or re.fullmatch('東京都|北海道|(?:京都|大阪)府|.{2,3}県') == None:
+        if self.value['pref_name'] == "" or re.fullmatch('東京都|北海道|(?:京都|大阪)府|.{2,3}県', self.value['pref_name']) == None:
             text2 = "都道府県　※入力値が不正です。例）東京都, 北海道, 大阪府"
             self.win['pref_title'].update(text2, text_color='red')
             self.win['pref_name'].update(background_color='red')
@@ -169,36 +191,46 @@ class SelectArea:
         window.close()
         return self.pref
 
-class Job(Scraping):
-    def __init__(self, path):
-        super().__init__(path)
-        super().init_work_book()
-    
-    def URL_scraping(self, area_list, junle):
-        if junle == 'すべてのジャンル':
-            super().all_scrap(area_list)
+class Job():
+    def __init__(self, path, area_list, junle):
+        self.path = path
+        self.area_list = area_list
+        self.junle = junle
+        self.scrap = Scraping(path)
+        self.scrap.init_work_book()
+        self.url_scrap_flg = True
+        self.info_scrap_flg = False
+        self.scrap_cnt = 0
+        self.end_flg = False
+
+    def run(self):
+        #url scraiping
+        print("hre")
+        if self.junle == 'すべてのジャンル':
+            self.scrap.all_scrap(self.area_list)
         else:
-            for area in area_list:
-                super().url_scrap(area, junle)
-    
-    def info_scraiping(self):
-        
-        for r in range(2, super().sheet.max_row+1):
-            sig.OneLineProgressMeter("ただいま処理中です。これには数時間かかることがあります。", r-1, super().sheet.max_row-1)
-            super().info_scrap(r)
-        super().book.save(super().path)
+            print("in run elif")
+            for area in self.area_list:
+                self.scrap.url_scrap(area, self.junle)
+        #info scraiping
+        self.url_scrap_flg = False
+        self.info_scrap_flg = True        
+        for r in range(2 ,self.scrap.sheet.max_row+1):
+            self.scrap.info_scrap(r)
+            self.scrap_cnt += 1
+        self.scrap.driver.quit()
+        self.scrap.book.save(self.path)
         #finishing scrap
-        while scrap.check(super().path) == False:
-            scrap.apper_adjst(super().path)
-        sig.popup('お疲れ様でした。抽出終了です。ファイルを確認してください。\n保存先：' +
-                  super().path, keep_on_top=True)
-        
-def main(area_list, junle, path):
-    job = Job(path)
-    print(area_list)
-    print(junle)
-    job.URL_scraping(area_list, junle)
-    job.info_scraiping()
+        while scrap.check(self.path) == False:
+            scrap.apper_adjst(self.path)
+            self.scrap.book.save(self.path)
+        self.end_flg = True
+        self.scrap.book.save(self.path)
+       
+    
+    def cancel(self):
+        self.scrap.book.save(self.path)
+        self.scrap.driver.quit()
         
 if __name__ == '__main__':
     main_win = Windows()
