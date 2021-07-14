@@ -39,7 +39,7 @@ class Scraping():
         self.options.add_argument('--ignore-ssl-errors')
         prefs = {"profile.default_content_setting_values.notifications": 2}
         self.options.add_experimental_option("prefs", prefs)
-        browser_path = resource_path('Win_x64_857997_chrome-win/chrome-win/chrome.exe')
+        browser_path = resource_path('chrome-win/chrome.exe')
         self.options.binary_location = browser_path
         self.driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
         self.counter = 0
@@ -369,13 +369,14 @@ def check(path):
     sheet = book.worksheets[0]
     for r in range(2, sheet.max_row+1):
         print("check" + str(r))
-        sig.OneLineProgressMeter('内容チェック中...', r-1, sheet.max_row-1)
+        #sig.OneLineProgressMeter('内容チェック中...', r-1, sheet.max_row-1)
         if sheet.cell(row=r, column=2).value in ("", " ", None):
             fill =  PatternFill(patternType='solid', fgColor='ffff00')
             sheet['B'+str(r)].fill = fill
             sheet.cell(row=r, column=2, value='抽出不可')
         if sheet.cell(row=r, column=1).value == "" or sheet.cell(row=r, column=1).value == None:
             return False
+    book.save(path)
     return True
 
 if __name__ == "__main__":
