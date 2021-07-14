@@ -1,4 +1,5 @@
 Win_x64_857997_chrome-win
 __pycache__
 *.xlsx
-chromedriver_win32
+chromedriver_win32/*.*
+chrome-win
