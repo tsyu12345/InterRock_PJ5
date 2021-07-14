@@ -95,6 +95,7 @@ class Scraping():
         ]
         for area in area_list:
             for junle in class_menu:
+                self.counter = 0
                 self.url_scrap(area, junle)
             print(area + "search complete.")
 
