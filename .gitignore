@@ -3,3 +3,8 @@ __pycache__
 *.xlsx
 chromedriver_win32/chromedriver.exe
 chrome-win
+build
+dist
+*.spec
+*.zip
+binarys
