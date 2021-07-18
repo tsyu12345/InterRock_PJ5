@@ -107,7 +107,7 @@ class Windows:
                                 break
                             """
                         #cancel = sig.popup_cancel('抽出処理中です。これには数時間かかることがあります。\n中断するには’Cancelled’ボタンを押してください。')
-                        if job.info_scrap_flg and (job.scrap_cnt - job.scrap.sheet.max_row-2) != 0:
+                        if job.info_scrap_flg:
                             try:
                                 cancel = sig.one_line_progress_meter("処理中です...", job.scrap_cnt, job.scrap.sheet.max_row-2, 'prog', "店舗情報を抽出しています。\nこれには数時間かかることがあります。")
                             except TypeError:
@@ -183,8 +183,7 @@ class Windows:
 
 class SelectArea:
     def __init__(self):
-        width = 500
-        height = 500
+       
         sig.theme('BluePurple')
 
     def area_list(self):
