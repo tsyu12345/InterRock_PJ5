@@ -98,14 +98,14 @@ class Windows:
                             except TypeError:
                                 cancel = sig.OneLineProgressMeter(
                                     "処理中です...", 0, 1, 'prog', "現在準備中です。")
-                            """
+                            
                             if cancel == False and job.detati_flg == True:
                                 print("detati in ")
                                 #sig.popup_no_buttons('中止処理中です...。', non_blocking=True, auto_close=True)
                                 detati = True
                                 running = False
                                 break
-                            """
+                            
                         #cancel = sig.popup_cancel('抽出処理中です。これには数時間かかることがあります。\n中断するには’Cancelled’ボタンを押してください。')
                         if job.info_scrap_flg:
                             try:
@@ -114,13 +114,12 @@ class Windows:
                                 cancel = sig.OneLineProgressMeter(
                                     "処理中です...", 0, 1, 'prog', "現在準備中です。")
 
-                            """
                             if cancel == False and job.detati_flg == True:
                                 print("detati in ")
                                 detati = True
                                 running = False
                                 break
-                            """
+                            
                         if job.check_flg:
                             sig.popup_no_buttons('ただいま抽出データチェック中です。あと少しで完了です。', non_blocking=True, auto_close=True, keep_on_top=True)
                             while job.end_flg == False:
@@ -251,8 +250,10 @@ class Job():
                 self.detati_flg = True
                 self.scrap.url_scrap(area, self.junle)
         # info scraiping
+        self.detati_flg = False
         self.url_scrap_flg = False
         self.info_scrap_flg = True
+        self.detati_flg = True
         for r in range(2, self.scrap.sheet.max_row+1):
             if self.scrap_cnt % 100 == 0:
                 self.scrap.restart(r)
