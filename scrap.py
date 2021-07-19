@@ -1,3 +1,4 @@
+from typing import Counter
 from selenium import webdriver
 from selenium.common.exceptions import InvalidArgumentException, InvalidSwitchToTargetException, NoSuchElementException, TimeoutException, WebDriverException
 from selenium.webdriver.chrome.webdriver import WebDriver
@@ -270,10 +271,11 @@ class Scraping():
             #self.book_save()
             pass
 
-    def restart(self, url):
+    def restart(self, index):
         self.driver.quit()
         time.sleep(5)
         self.driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
+        url = self.sheet.cell(row=index, column=8).value
         self.driver.get(url)
 
     def call_jis_code(self, key):
