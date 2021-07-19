@@ -160,22 +160,11 @@ class Scraping():
     def info_scrap(self, index):
         #conunter = 0
         try:
-            self.driver.get(self.sheet.cell(row=index, column=8).value)
+            url = self.sheet.cell(row=index, column=8).value
+            self.driver.get(url)
         except WebDriverException:
-            print("retry...")
-            for k in range(3):
-                try:
-                    time.sleep(10)
-                    print('restart browser...')
-                    self.driver.quit()
-                    self.driver = webdriver.Chrome(
-                        executable_path=self.driver_path, options=self.options)
-                    print('open browser...')
-                    time.sleep(3)
-                    self.driver.get(self.sheet.cell(row=index, column=8).value)
-                except:
-                    print('Error not Resolved')
-                    continue
+            time.sleep(10)
+            self.restart(url)
         else:
             pass
         html = self.driver.page_source
@@ -280,7 +269,12 @@ class Scraping():
         except:
             #self.book_save()
             pass
-        
+
+    def restart(self, url):
+        self.driver.quit()
+        time.sleep(5)
+        self.driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
+        self.driver.get(url)
 
     def call_jis_code(self, key):
         pref_jiscode = {
