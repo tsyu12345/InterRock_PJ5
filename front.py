@@ -93,7 +93,7 @@ class Windows:
                             page_cnt = job.scrap.page_count
                             prog_count = job.scrap.counter
                             try:
-                                cancel = sig.one_line_progress_meter("処理中です...", prog_count, page_cnt, 'prog', "掲載URLを抽出しています。しばらくお待ちください。")
+                                cancel = sig.one_line_progress_meter("処理中です...", prog_count, page_cnt, 'prog', "掲載URLを抽出しています。しばらくお待ちください。",orientation='h')
 
                             except TypeError:
                                 cancel = sig.OneLineProgressMeter(
@@ -109,7 +109,8 @@ class Windows:
                         #cancel = sig.popup_cancel('抽出処理中です。これには数時間かかることがあります。\n中断するには’Cancelled’ボタンを押してください。')
                         if job.info_scrap_flg:
                             try:
-                                cancel = sig.one_line_progress_meter("処理中です...", job.scrap_cnt, job.scrap.sheet.max_row-1, 'prog', "店舗情報を抽出しています。\nこれには数時間かかることがあります。")
+                                
+                                cancel = sig.one_line_progress_meter("処理中です...", job.scrap_cnt, job.scrap.sheet.max_row-1, 'prog', "店舗情報を抽出しています。\nこれには数時間かかることがあります。", orientation='h')
                             except TypeError:
                                 cancel = sig.OneLineProgressMeter(
                                     "処理中です...", 0, 1, 'prog', "現在準備中です。")
