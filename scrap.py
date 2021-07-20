@@ -123,6 +123,8 @@ class Scraping():
                 html = self.driver.page_source
                 soup = bs(html, 'lxml')
                 links_list = soup.select("#mainContents > ul > li > div.slnCassetteHeader > h3 > a")
+                if links_list[0] == None:
+                    links_list = soup.select("#mainContents > ul > li > div.slcHeadWrap > div > div.slcHeadContentsInner > h3 > a")
                 print(links_list)
                 for a in links_list:
                     url = a.get('href')
