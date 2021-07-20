@@ -108,14 +108,14 @@ class Windows:
                             
                         #cancel = sig.popup_cancel('抽出処理中です。これには数時間かかることがあります。\n中断するには’Cancelled’ボタンを押してください。')
                         if job.info_scrap_flg:
-                            try:
-                                
-                                cancel = sig.one_line_progress_meter("処理中です...", job.scrap_cnt, job.scrap.sheet.max_row-1, 'prog', "店舗情報を抽出しています。\nこれには数時間かかることがあります。", orientation='h')
-                            except TypeError:
+                            try:   
+                                cancel = sig.one_line_progress_meter("処理中です...", job.scrap_cnt, job.scrap_sum, 'prog', "店舗情報を抽出しています。\nこれには数時間かかることがあります。", orientation='h')
+                            except (TypeError, RuntimeError):
                                 cancel = sig.OneLineProgressMeter(
                                     "処理中です...", 0, 1, 'prog', "現在準備中です。")
+                                pass
 
-                            if cancel == False and job.detati_flg == True:
+                            if cancel == False and job.detati_flg == True and job.end_flg == False:
                                 print("detati in ")
                                 detati = True
                                 running = False
@@ -233,6 +233,7 @@ class Job():
         self.url_scrap_flg = False
         self.info_scrap_flg = False
         self.scrap_cnt = 0
+        self.scrap_sum = 1
         self.check_flg = False
         self.end_flg = False
         self.detati_flg = False
@@ -255,6 +256,7 @@ class Job():
         self.url_scrap_flg = False
         self.info_scrap_flg = True
         self.detati_flg = True
+        self.scrap_sum = self.scrap.sheet.max_row
         for r in range(2, self.scrap.sheet.max_row+1):
             if self.scrap_cnt % 100 == 0:
                 self.scrap.restart(r)

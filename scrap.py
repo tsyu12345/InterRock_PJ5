@@ -29,7 +29,7 @@ class Scraping():
         self.options = webdriver.ChromeOptions()
         self.options.add_argument("start-maximized")
         self.options.add_argument("enable-automation")
-        #self.options.add_argument("--headless")
+        self.options.add_argument("--headless")
         self.options.add_argument("--no-sandbox")
         self.options.add_argument("--disable-infobars")
         self.options.add_argument('--disable-extensions')
@@ -163,7 +163,7 @@ class Scraping():
         try:
             url = self.sheet.cell(row=index, column=8).value
             self.driver.get(url)
-        except WebDriverException:
+        except (WebDriverException, TimeoutException):
             time.sleep(10)
             self.restart(url)
         else:
