@@ -379,6 +379,7 @@ def check(path):
 
 if __name__ == "__main__":
     job = Scraping('./kouti_test.xlsx')
+    job.init_work_book()
     job.url_scrap('高知県', 'ヘアサロン')
     for r in range(2, job.sheet.max_row+1):
         sig.OneLineProgressMeter("処理中です。しばらくお待ちください。", r, job.sheet.max_row)
