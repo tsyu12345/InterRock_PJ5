@@ -122,9 +122,11 @@ class Scraping():
             try:
                 html = self.driver.page_source
                 soup = bs(html, 'lxml')
-                links_list = soup.select("div.slcHeadContentsInner > h3 > a")
+                links_list = soup.select("#mainContents > ul > li > div.slnCassetteHeader > h3 > a")
+                print(links_list)
                 for a in links_list:
                     url = a.get('href')
+                    print(url)
                     r = self.sheet.max_row
                     self.sheet.cell(row=r+1, column=1, value=store_junle)#ジャンル
                     self.sheet.cell(row=r+1, column=6, value=area)#エリア
