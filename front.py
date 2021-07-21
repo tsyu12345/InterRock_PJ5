@@ -1,9 +1,10 @@
 from scrap import Scraping
 import scrap
 import PySimpleGUI as sig
-from PySimpleGUI.PySimpleGUI import SaveAs, T, Text
+from PySimpleGUI.PySimpleGUI import Frame, SaveAs, T, Text
 import sys
-from concurrent.futures import ThreadPoolExecutor as TPE
+#from concurrent.futures import ThreadPoolExecutor as TPE
+import threading as th
 
 
 class Windows:
@@ -63,10 +64,12 @@ class Windows:
         running = False
         comp_flg = False
         detati = False
-        executer = TPE(max_workers=2)
+        loading = True
+        #executer = TPE(max_workers=2)
         while comp_flg == False:
             self.event, self.value = self.win.read()
             print(self.event, self.value)
+
             if self.event == 'エリア選択':
                 sub_win = SelectArea()
                 self.pref_list = sub_win.display()
@@ -84,7 +87,8 @@ class Windows:
                     area_list = self.value['pref_name'].split(",")
                     job = Job(self.value['path'], area_list,
                               self.value['store_class'])
-                    future = executer.submit(job.run,)
+                    th1 = th.Thread(target=job.run, daemon=True)
+                    th1.start()
                     running = True
                     while running:
 
@@ -101,7 +105,7 @@ class Windows:
                             
                             if cancel == False and job.detati_flg == True and job.end_flg == False:
                                 print("detati in ")
-                                #sig.popup_no_buttons('中止処理中です...。', non_blocking=True, auto_close=True)
+                                sig.popup_no_buttons('中止処理中です...。', non_blocking=True, auto_close=True)
                                 detati = True
                                 running = False
                                 break
@@ -109,7 +113,7 @@ class Windows:
                         #cancel = sig.popup_cancel('抽出処理中です。これには数時間かかることがあります。\n中断するには’Cancelled’ボタンを押してください。')
                         if job.info_scrap_flg:
                             try:   
-                                cancel = sig.one_line_progress_meter("処理中です...", job.scrap_cnt, job.scrap_sum, 'prog', "店舗情報を抽出しています。\nこれには数時間かかることがあります。", orientation='h')
+                                cancel = sig.one_line_progress_meter("処理中です...", job.scrap_cnt, job.scrap_sum, 'prog', "店舗情報を抽出しています。\nこれには数時間かかることがあります。", orientation='h',)
                             except (TypeError, RuntimeError):
                                 cancel = sig.OneLineProgressMeter(
                                     "処理中です...", 0, 1, 'prog', "現在準備中です。")
@@ -128,20 +132,21 @@ class Windows:
                             comp_flg = True
                             running = False
                             break
+            
             if comp_flg:
                 sig.popup('お疲れ様でした。抽出完了です。保存先を確認してください\n' +
                     self.value['path'], keep_on_top=True)
                 break
             
             if detati:
-                sig.popup_no_buttons('中止処理中です...。', non_blocking=True, auto_close=True)
                 try:
                     job.cancel()
+                    #executer.shutdown(wait=False)
                     sig.popup("処理を中断しました。途中保存ファイル先は下記です。\n" +
                               self.value['path'])
                     break
                 except TypeError:
-                    pass
+                    break
             # when window close
             if self.event in ("Quit", None):
                 break
