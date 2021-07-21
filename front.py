@@ -126,8 +126,8 @@ class Windows:
                                 break
                             
                         if job.check_flg:
-                            sig.popup_no_buttons('ただいま抽出データチェック中です。あと少しで完了です。', non_blocking=True, auto_close=True, keep_on_top=True)
                             while job.end_flg == False:
+                                sig.popup_animated('animationGifs/images/icon_loader_a_bb_01_s1.gif',message="抽出データの確認を行っています。あと少しで完了します。")
                                 comp_flg = False
                             comp_flg = True
                             running = False
