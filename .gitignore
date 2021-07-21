@@ -10,4 +10,6 @@ dist
 binarys
 product
 simple_loading_icon_gif
+animationGifs
 *.png
+test.py
