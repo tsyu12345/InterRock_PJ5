@@ -118,7 +118,7 @@ class Scraping():
         print("pages : " + pages)
         self.page_count = int(pages)
         for i in range(int(pages)):
-            if i % 100 == 0:
+            if i % 100 == 0 and i > 0:
                 cur_url = self.driver.current_url
                 self.book.save(self.path)
                 self.driver.quit()
