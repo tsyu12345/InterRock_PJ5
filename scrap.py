@@ -118,6 +118,14 @@ class Scraping():
         print("pages : " + pages)
         self.page_count = int(pages)
         for i in range(int(pages)):
+            if i % 100 == 0:
+                cur_url = self.driver.current_url
+                self.book.save(self.path)
+                self.driver.quit()
+                time.sleep(5)
+                self.driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
+                self.driver.get(cur_url)
+                
             #sig.OneLineProgressMeter("掲載URLの抽出中...", self.counter, int(pages))
             try:
                 html = self.driver.page_source
