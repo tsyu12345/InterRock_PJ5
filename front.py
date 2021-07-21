@@ -99,7 +99,7 @@ class Windows:
                                 cancel = sig.OneLineProgressMeter(
                                     "処理中です...", 0, 1, 'prog', "現在準備中です。")
                             
-                            if cancel == False and job.detati_flg == True:
+                            if cancel == False and job.detati_flg == True and job.end_flg == False:
                                 print("detati in ")
                                 #sig.popup_no_buttons('中止処理中です...。', non_blocking=True, auto_close=True)
                                 detati = True
