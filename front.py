@@ -127,7 +127,7 @@ class Windows:
                             
                         if job.check_flg:
                             while job.end_flg == False:
-                                sig.popup_animated('animationGifs/images/icon_loader_a_bb_01_s1.gif',message="抽出データの確認を行っています。あと少しで完了します。")
+                                sig.popup_animated('animationGifs/images/icon_loader_f_ww_01_s1.gif',message="抽出データの確認を行っています。\nあと少しで完了します。")
                                 comp_flg = False
                             comp_flg = True
                             running = False
