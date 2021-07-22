@@ -1,7 +1,7 @@
-from typing import Counter
 from selenium import webdriver
 from selenium.common.exceptions import InvalidArgumentException, InvalidSwitchToTargetException, NoSuchElementException, TimeoutException, WebDriverException
-from selenium.webdriver.chrome.webdriver import WebDriver
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
 import openpyxl as px
 from openpyxl.styles import PatternFill
@@ -10,11 +10,8 @@ import time
 import datetime
 import re
 import requests as rq
-import threading as th
 import sys
 import os
-import PySimpleGUI as sig
-
 
 class Scraping():
     book = px.Workbook()
@@ -103,14 +100,14 @@ class Scraping():
     def url_scrap(self, area, store_junle):
         #MAX_RETRY = 3
         print("starting ChromeDriver.exe....")
-        
+        wait = WebDriverWait(self.driver, 180)#Max wait time(second):180s
         self.driver.get("https://beauty.hotpepper.jp/top/")  # top page
         sr_class = self.driver.find_element_by_link_text(store_junle)#ジャンル選択
         sr_class.click()
-        time.sleep(5)
+        wait.until(EC.visibility_of_all_elements_located)
         search = self.driver.find_element_by_css_selector('#freeWordSearch1')
         search.send_keys(area + Keys.ENTER)
-        time.sleep(2)
+        wait.until(EC.visibility_of_all_elements_located)
         result_pages = self.driver.find_element_by_css_selector(
             'p.pa.bottom0.right0').text
         page_num = re.split('[/ ]', result_pages)
@@ -148,7 +145,7 @@ class Scraping():
                     pre_index = i
                     next_btn = self.driver.find_element_by_link_text("次へ")
                     next_btn.click()
-                    time.sleep(1)
+                    wait.until(EC.visibility_of_all_elements_located)
                 except NoSuchElementException:
                     break
             except (WebDriverException, TimeoutException):
@@ -161,7 +158,7 @@ class Scraping():
                 self.driver.get(pre_url)
                 next_btn = self.driver.find_element_by_link_text("次へ")
                 next_btn.click()
-                time.sleep(1)
+                wait.until(EC.visibility_of_all_elements_located)
                 continue
             else:
                 pass
@@ -173,14 +170,21 @@ class Scraping():
 
     def info_scrap(self, index):
         #conunter = 0
+        wait = WebDriverWait(self.driver, 180)
         try:
             url = self.sheet.cell(row=index, column=8).value
             self.driver.get(url)
         except (WebDriverException, TimeoutException):
-            time.sleep(10)
-            self.restart(url)
+            self.book.save(self.path)
+            self.driver.delete_all_cookies()
+            self.driver.quit()
+            time.sleep(30)#強制30秒待機
+            self.driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
+            wait = WebDriverWait(self.driver, 180)
+            self.driver.get(url)
         else:
             pass
+        wait.until(EC.visibility_of_all_elements_located)
         html = self.driver.page_source
         soup = bs(html, 'lxml')
         table_value = soup.select(
@@ -395,7 +399,7 @@ if __name__ == "__main__":
     job.init_work_book()
     job.url_scrap('高知県', 'ヘアサロン')
     for r in range(2, job.sheet.max_row+1):
-        sig.OneLineProgressMeter("処理中です。しばらくお待ちください。", r, job.sheet.max_row)
+        #sig.OneLineProgressMeter("処理中です。しばらくお待ちください。", r, job.sheet.max_row)
         job.info_scrap(r)
     job.book.save('./kouti_test.xlsx')
     job.driver.quit()

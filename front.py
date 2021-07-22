@@ -1,7 +1,8 @@
 from scrap import Scraping
 import scrap
 import PySimpleGUI as sig
-from PySimpleGUI.PySimpleGUI import Frame, SaveAs, T, Text
+import traceback
+from selenium.common.exceptions import TimeoutException, WebDriverException
 import sys
 #from concurrent.futures import ThreadPoolExecutor as TPE
 import threading as th
@@ -124,7 +125,11 @@ class Windows:
                                 detati = True
                                 running = False
                                 break
-                            
+                        
+                        if job.exception_flg:
+                            sig.Print("ブラウザの再起動を試みましたが失敗しました。タイムアウトです。")
+                            sig.Print(job.log, text_color='red')
+
                         if job.check_flg:
                             while job.end_flg == False:
                                 sig.popup_animated('animationGifs/images/icon_loader_f_ww_01_s1.gif',message="抽出データの確認を行っています。\nあと少しで完了します。")
@@ -242,6 +247,7 @@ class Job():
         self.check_flg = False
         self.end_flg = False
         self.detati_flg = False
+        self.exception_flg = False
 
     def run(self):
         # url scraiping
@@ -263,10 +269,15 @@ class Job():
         self.detati_flg = True
         self.scrap_sum = self.scrap.sheet.max_row
         for r in range(2, self.scrap.sheet.max_row+1):
-            if self.scrap_cnt % 100 == 0:
-                self.scrap.restart(r)
-            self.scrap.info_scrap(r)
-            self.scrap_cnt += 1
+            try:
+                if self.scrap_cnt % 100 == 0:
+                    self.scrap.restart(r)
+                self.scrap.info_scrap(r)
+            except TimeoutException:
+                self.log = traceback.format_exc()
+                self.exception_flg = True 
+            else:
+                self.scrap_cnt += 1
         self.detati_flg = False
         self.info_scrap_flg = False
         #sig.popup_no_buttons('保存中...。', non_blocking=True, auto_close=True)
