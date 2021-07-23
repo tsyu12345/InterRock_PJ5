@@ -105,7 +105,10 @@ class Scraping():
         sr_class = self.driver.find_element_by_link_text(store_junle)#ジャンル選択
         sr_class.click()
         wait.until(EC.visibility_of_all_elements_located)
-        search = self.driver.find_element_by_css_selector('#freeWordSearch1')
+        try:
+            search = self.driver.find_element_by_css_selector('#freeWordSearch1')
+        except NoSuchElementException:
+            #!!breakpoint!!
         search.send_keys(area + Keys.ENTER)
         wait.until(EC.visibility_of_all_elements_located)
         result_pages = self.driver.find_element_by_css_selector(
