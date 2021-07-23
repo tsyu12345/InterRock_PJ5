@@ -105,7 +105,7 @@ class Scraping():
         self.driver.get("https://beauty.hotpepper.jp/top/")  # top page
         sr_class = self.driver.find_element_by_link_text(store_junle)#ジャンル選択
         sr_class.click()
-        wait.until(EC.visibility_of_element_located(By.CSS_SELECTOR, "#freeWordSearch1"))
+        wait.until(EC.visibility_of_element_located((By.ID, "freeWordSearch1")))
         search = self.driver.find_element_by_id('freeWordSearch1')
         search.send_keys(area + Keys.ENTER)
         wait.until(EC.visibility_of_all_elements_located)
