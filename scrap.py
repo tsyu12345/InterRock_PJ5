@@ -2,6 +2,7 @@ from selenium import webdriver
 from selenium.common.exceptions import InvalidArgumentException, InvalidSwitchToTargetException, NoSuchElementException, TimeoutException, WebDriverException
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 import openpyxl as px
 from openpyxl.styles import PatternFill
@@ -104,11 +105,8 @@ class Scraping():
         self.driver.get("https://beauty.hotpepper.jp/top/")  # top page
         sr_class = self.driver.find_element_by_link_text(store_junle)#ジャンル選択
         sr_class.click()
-        wait.until(EC.visibility_of_all_elements_located)
-        try:
-            search = self.driver.find_element_by_css_selector('#freeWordSearch1')
-        except NoSuchElementException:
-            #!!breakpoint!!
+        wait.until(EC.visibility_of_element_located(By.CSS_SELECTOR, "#freeWordSearch1"))
+        search = self.driver.find_element_by_id('freeWordSearch1')
         search.send_keys(area + Keys.ENTER)
         wait.until(EC.visibility_of_all_elements_located)
         result_pages = self.driver.find_element_by_css_selector(
