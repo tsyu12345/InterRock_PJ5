@@ -108,9 +108,8 @@ class Scraping():
         wait.until(EC.visibility_of_element_located((By.ID, "freeWordSearch1")))
         search = self.driver.find_element_by_id('freeWordSearch1')
         search.send_keys(area + Keys.ENTER)
-        wait.until(EC.visibility_of_all_elements_located)
-        result_pages = self.driver.find_element_by_css_selector(
-            'p.pa.bottom0.right0').text
+        wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, "p.pa.bottom0.right0")))
+        result_pages = self.driver.find_element_by_css_selector('p.pa.bottom0.right0').text
         page_num = re.split('[/ ]', result_pages)
         pages = re.sub(r"\D", "", page_num[1])
         print("pages : " + pages)
