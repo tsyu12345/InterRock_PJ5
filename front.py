@@ -2,10 +2,12 @@ from scrap import Scraping
 import scrap
 import PySimpleGUI as sig
 import traceback
+from selenium import webdriver
 from selenium.common.exceptions import TimeoutException, WebDriverException
 import sys
 #from concurrent.futures import ThreadPoolExecutor as TPE
 import threading as th
+import time
 
 
 class Windows:
@@ -125,11 +127,9 @@ class Windows:
                                 detati = True
                                 running = False
                                 break
-                        
-                        if job.exception_flg:
-                            sig.Print("ブラウザの再起動を試みましたが失敗しました。タイムアウトです。")
-                            sig.Print(job.log, text_color='red')
 
+                        if job.exception_flg:
+                            sig.popup_auto_close('読み込みがタイムアウトしました。120秒後に自動で再起動します。', keep_on_top=True)
                         if job.check_flg:
                             while job.end_flg == False:
                                 sig.popup_animated('animationGifs/images/icon_loader_f_ww_01_s1.gif',message="抽出データの確認を行っています。\nあと少しで完了します。")
@@ -274,8 +274,13 @@ class Job():
                     self.scrap.restart(r)
                 self.scrap.info_scrap(r)
             except TimeoutException:
-                self.log = traceback.format_exc()
-                self.exception_flg = True 
+                self.exception_flg = True
+                self.scrap.driver.quit()
+                self.scrap.book.save(self.path)
+                time.sleep(120)
+                self.exception_flg = False
+                self.scrap.driver = webdriver.Chrome(executable_path=self.scrap.driver_path, options=self.scrap.options)
+                self.scrap.info_scrap(r)
             else:
                 self.scrap_cnt += 1
         self.detati_flg = False
