@@ -284,11 +284,11 @@ class Job():
             else:
                 self.scrap_cnt += 1
         self.detati_flg = False
-        self.info_scrap_flg = False
         #sig.popup_no_buttons('保存中...。', non_blocking=True, auto_close=True)
         self.scrap.driver.quit()
-        self.scrap.book.save(self.path)
-
+        self.scrap.book.save(self.scrap.path)
+        self.info_scrap_flg = False
+        
         # finishing scrap
         self.check_flg = True
         while scrap.check(self.path) == False:
