@@ -128,8 +128,9 @@ class Windows:
                                 running = False
                                 break
 
-                        if job.exception_flg:
-                            sig.popup_auto_close('読み込みがタイムアウトしました。120秒後に自動で再起動します。', keep_on_top=True)
+                            if job.exception_flg:
+                                sig.popup_auto_close('読み込みがタイムアウトしました。120秒後に自動で再起動します。', keep_on_top=True)
+                        
                         if job.check_flg:
                             while job.end_flg == False:
                                 sig.popup_animated('animationGifs/images/icon_loader_f_ww_01_s1.gif',message="抽出データの確認を行っています。\nあと少しで完了します。")
@@ -257,7 +258,6 @@ class Job():
             self.detati_flg = True
             self.scrap.all_scrap(self.area_list)
         else:
-            print("in run elif")
             for area in self.area_list:
                 self.scrap.counter = 0
                 self.detati_flg = True

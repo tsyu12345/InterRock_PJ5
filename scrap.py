@@ -193,6 +193,7 @@ class Scraping():
             'div.mT30 > table > tbody > tr > th')
           # 住所の抽出（少々処理があるため別で書き出す）
         pref_tf = True
+        prefecture = ""
         for j, e in enumerate(table_menu):
             if e.get_text() == "住所":
                 all_address = table_value[j].get_text()
@@ -209,8 +210,6 @@ class Scraping():
                 jis_code = self.call_jis_code(prefecture)
                 municipality = address_low[1]  # それ以降
                 break
-        print("都道府県：" + prefecture)
-        print("市区町村番地：" + municipality)
         # 指定エリアでないとき、下記処理を行わない
         try:
             if pref_tf:
@@ -261,17 +260,20 @@ class Scraping():
                 slide_cnt = len(slide_img_tag)
 
                 # write Excel
-                self.sheet.cell(row=index, column=2, value=store_name)
-                self.sheet.cell(row=index, column=3, value=st_name_kana)
-                self.sheet.cell(row=index, column=4, value=tel_num)
-                self.sheet.cell(row=index, column=5, value=jis_code)
-                self.sheet.cell(row=index, column=6, value=prefecture)
-                self.sheet.cell(row=index, column=7, value=municipality)
-                self.sheet.cell(row=index, column=9, value=self.scrap_day())
-                self.sheet.cell(row=index, column=13, value=pankuzu)
-                self.sheet.cell(row=index, column=16, value=slide_cnt)
-                self.sheet.cell(row=index, column=17, value=catch_copy)
-                self.sheet.cell(row=index, column=14, value=head_img_yn)
+                try:
+                    self.sheet.cell(row=index, column=2, value=store_name)
+                    self.sheet.cell(row=index, column=3, value=st_name_kana)
+                    self.sheet.cell(row=index, column=4, value=tel_num)
+                    self.sheet.cell(row=index, column=5, value=jis_code)
+                    self.sheet.cell(row=index, column=6, value=prefecture)
+                    self.sheet.cell(row=index, column=7, value=municipality)
+                    self.sheet.cell(row=index, column=9, value=self.scrap_day())
+                    self.sheet.cell(row=index, column=13, value=pankuzu)
+                    self.sheet.cell(row=index, column=16, value=slide_cnt)
+                    self.sheet.cell(row=index, column=17, value=catch_copy)
+                    self.sheet.cell(row=index, column=14, value=head_img_yn)
+                except:
+                    pass
                 # 他の情報処理
                 try:
                     for j in range(2, len(table_value)):
