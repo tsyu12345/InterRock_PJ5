@@ -297,7 +297,8 @@ class Job():
         self.check_flg = False
         self.end_flg = True
 
-
+    def retry(self):
+        """Scrapingが失敗したとき（自動再起動でも）手動で再スクレイピングする"""
     def cancel(self):
         self.scrap.book.save(self.path)
         self.scrap.driver.quit()
