@@ -7,6 +7,7 @@ from selenium.common.exceptions import TimeoutException, WebDriverException
 import sys
 #from concurrent.futures import ThreadPoolExecutor as TPE
 import threading as th
+from multiprocessing import Pool
 import time
 
 
@@ -249,6 +250,7 @@ class Job():
         self.end_flg = False
         self.detati_flg = False
         self.exception_flg = False
+        self.pool = Pool(2)
 
     def run(self):
         # url scraiping
@@ -256,12 +258,14 @@ class Job():
         self.url_scrap_flg = True
         if self.junle == 'すべてのジャンル':
             self.detati_flg = True
-            self.scrap.all_scrap(self.area_list)
+            search_process = self.pool.apply_async(target=self.scrap.all_scrap, args=(self.area_list))
+            #self.scrap.all_scrap(self.area_list)
         else:
             for area in self.area_list:
                 self.scrap.counter = 0
                 self.detati_flg = True
-                self.scrap.url_scrap(area, self.junle)
+                search_process = self.pool.apply_async(target=self.scrap.url_scrap, args=(area, self.ju))
+                #self.scrap.url_scrap(area, self.junle)
         # info scraiping
         self.detati_flg = False
         self.url_scrap_flg = False
