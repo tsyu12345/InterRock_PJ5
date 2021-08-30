@@ -264,9 +264,20 @@ class Job():
             for area in self.area_list:
                 self.scrap.counter = 0
                 self.detati_flg = True
-                search_process = self.pool.apply_async(target=self.scrap.url_scrap, args=(area, self.ju))
+                search_process = self.pool.apply_async(target=self.scrap.url_scrap, args=(area, self.junle))
                 #self.scrap.url_scrap(area, self.junle)
+        
         # info scraiping
+        while True:#search_processが終了するまで。
+            for row in range(2, self.scrap.sheet.max_row+1):
+                if ("", " ", None) in self.scrap.sheet.cell(row=row, column=2).value:#info_scrap未実施行の場合
+                    #スクレイピングを実行。
+                    self.scrap.info_scrap(row)
+                else:#すでに抽出済みの場合
+                    #なにもしない。
+                    pass
+
+
         self.detati_flg = False
         self.url_scrap_flg = False
         self.info_scrap_flg = True
