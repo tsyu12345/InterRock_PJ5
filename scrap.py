@@ -292,6 +292,7 @@ class Scraping():
 
     def restart(self, index):
         self.book.save(self.path)
+        self.driver.delete_all_cookies()
         self.driver.quit()
         time.sleep(5)
         self.driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
