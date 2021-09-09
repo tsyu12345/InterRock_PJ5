@@ -43,6 +43,7 @@ class Scraping():
         self.driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
         self.counter = 0
         self.page_count = 1
+        #self.search_end_flg = False
         #self.area = area
         #self.store_class = store_class
 
@@ -97,31 +98,33 @@ class Scraping():
                 self.counter = 0
                 self.url_scrap(area, junle)
             print(area + "search complete.")
+        self.search_end_flg = True
 
     def url_scrap(self, area, store_junle):
         #MAX_RETRY = 3
+        driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
         print("starting ChromeDriver.exe....")
-        wait = WebDriverWait(self.driver, 180)#Max wait time(second):180s
-        self.driver.get("https://beauty.hotpepper.jp/top/")  # top page
-        sr_class = self.driver.find_element_by_link_text(store_junle)#ジャンル選択
+        wait = WebDriverWait(driver, 180)#Max wait time(second):180s
+        driver.get("https://beauty.hotpepper.jp/top/")  # top page
+        sr_class = driver.find_element_by_link_text(store_junle)#ジャンル選択
         sr_class.click()
         wait.until(EC.visibility_of_element_located((By.ID, "freeWordSearch1")))
-        search = self.driver.find_element_by_id('freeWordSearch1')
+        search = driver.find_element_by_id('freeWordSearch1')
         search.send_keys(area + Keys.ENTER)
         wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, "p.pa.bottom0.right0")))
-        result_pages = self.driver.find_element_by_css_selector('p.pa.bottom0.right0').text
+        result_pages = driver.find_element_by_css_selector('p.pa.bottom0.right0').text
         page_num = re.split('[/ ]', result_pages)
         pages = re.sub(r"\D", "", page_num[1])
         print("pages : " + pages)
         self.page_count = int(pages)
         for i in range(int(pages)):
             if i % 100 == 0 and i > 0:
-                cur_url = self.driver.current_url
+                cur_url = driver.current_url
                 self.book.save(self.path)
                 self.driver.quit()
                 time.sleep(5)
-                self.driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
-                self.driver.get(cur_url)
+                driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
+                driver.get(cur_url)
                 
             #sig.OneLineProgressMeter("掲載URLの抽出中...", self.counter, int(pages))
             try:
@@ -141,9 +144,9 @@ class Scraping():
                     self.sheet.cell(row=r+1, column=8, value=url)#URL
                     #print(self.sheet.cell(row=r+1, column=8).value)
                 try:
-                    pre_url = self.driver.current_url
-                    pre_index = i
-                    next_btn = self.driver.find_element_by_link_text("次へ")
+                    pre_url = driver.current_url
+                    #pre_index = i
+                    next_btn = driver.find_element_by_link_text("次へ")
                     next_btn.click()
                     wait.until(EC.visibility_of_all_elements_located)
                 except NoSuchElementException:
@@ -153,9 +156,9 @@ class Scraping():
                 self.driver.quit()
                 time.sleep(10)
                 print("starting ChromeDriver.exe....")
-                self.driver = webdriver.Chrome(
+                driver = webdriver.Chrome(
                     executable_path=self.driver_path, options=self.options)
-                self.driver.get(pre_url)
+                driver.get(pre_url)
                 next_btn = self.driver.find_element_by_link_text("次へ")
                 next_btn.click()
                 wait.until(EC.visibility_of_all_elements_located)
@@ -166,6 +169,7 @@ class Scraping():
 
         self.book.save(self.path)
         print("search complete")
+        driver.quit()
         #self.driver.close()
 
     def info_scrap(self, index):

@@ -100,6 +100,7 @@ class Windows:
                             #sig.popup_no_buttons('掲載URLを抽出処理中です。ブラウザの動作を止めないでください。', non_blocking=True, auto_close=True)
                             page_cnt = job.scrap.page_count
                             prog_count = job.scrap.counter
+                            """
                             try:
                                 cancel = sig.one_line_progress_meter("処理中です...", prog_count, page_cnt, 'prog', "掲載URLを抽出しています。しばらくお待ちください。",orientation='h')
 
@@ -113,7 +114,7 @@ class Windows:
                                 detati = True
                                 running = False
                                 break
-                            
+                            """
                         #cancel = sig.popup_cancel('抽出処理中です。これには数時間かかることがあります。\n中断するには’Cancelled’ボタンを押してください。')
                         if job.info_scrap_flg:
                             try:   
@@ -244,8 +245,8 @@ class Job():
         self.scrap.init_work_book()
         self.url_scrap_flg = False
         self.info_scrap_flg = False
-        self.scrap_cnt = 0
-        self.scrap_sum = 1
+        self.scrap_cnt = 0 #info_scrap count
+        self.scrap_sum = 1 #sum count of scraiping
         self.check_flg = False
         self.end_flg = False
         self.detati_flg = False
@@ -254,35 +255,63 @@ class Job():
 
     def run(self):
         # url scraiping
-        print("hre")
         self.url_scrap_flg = True
         if self.junle == 'すべてのジャンル':
             self.detati_flg = True
-            search_process = self.pool.apply_async(target=self.scrap.all_scrap, args=(self.area_list))
+            search_process = self.pool.apply_async(self.scrap.all_scrap, args=[self.area_list])
             #self.scrap.all_scrap(self.area_list)
         else:
             for area in self.area_list:
                 self.scrap.counter = 0
                 self.detati_flg = True
-                search_process = self.pool.apply_async(target=self.scrap.url_scrap, args=(area, self.junle))
-                #self.scrap.url_scrap(area, self.junle)
+                search_process = self.pool.apply_async(self.scrap.url_scrap, args=[area, self.junle])
         
         # info scraiping
-        while True:#search_processが終了するまで。
-            for row in range(2, self.scrap.sheet.max_row+1):
-                if ("", " ", None) in self.scrap.sheet.cell(row=row, column=2).value:#info_scrap未実施行の場合
-                    #スクレイピングを実行。
-                    self.scrap.info_scrap(row)
-                else:#すでに抽出済みの場合
-                    #なにもしない。
-                    pass
-
-
-        self.detati_flg = False
-        self.url_scrap_flg = False
+        complete_row = 2 #初期値2行目
         self.info_scrap_flg = True
-        self.detati_flg = True
-        self.scrap_sum = self.scrap.sheet.max_row
+        while True:
+            if search_process.ready(): 
+                #url_scrap終了時
+                print(search_process.successful())
+                print("search end")
+                self.url_scrap_flg = False
+            
+            if self.url_scrap_flg == False and complete_row >= self.scrap.sheet.max_row and complete_row != 2:
+                #すべてが終了したとき
+                self.info_scrap_flg = False
+                break
+
+            ready_row = self.scrap.sheet.max_row #現在の最大読み込み行数
+            self.scrap_sum = ready_row #プログレスバー用カウントの更新
+            print("compleate row / loaded row : " + str(complete_row) + "/" + str(ready_row))
+            for row in range(complete_row, ready_row+1):
+                if (self.scrap.sheet.cell(row=row, column=8).value != None #URL抽出済
+                    and self.scrap.sheet.cell(row=row, column=2).value == None):#info_scrap未実施                     
+                    if self.scrap_cnt % 100 == 0:
+                        self.scrap.restart(row)
+                    self.scrap.info_scrap(row)
+                    self.scrap_cnt += 1
+                else:#URL未抽出行に到達
+                    break #更新のためbreak
+            complete_row = ready_row #次回開始行の更新
+
+        """
+        save data file
+        """
+        self.detati_flg = False
+        #sig.popup_no_buttons('保存中...。', non_blocking=True, auto_close=True)
+        self.scrap.driver.quit()
+        self.scrap.book.save(self.scrap.path)
+        self.info_scrap_flg = False
+        # finishing scrap
+        self.check_flg = True
+        while scrap.check(self.path) == False:
+            scrap.apper_adjst(self.path)
+        print("OK")
+        self.check_flg = False
+        self.end_flg = True
+
+    """
         for r in range(2, self.scrap.sheet.max_row+1):
             try:
                 if self.scrap_cnt % 100 == 0:
@@ -303,14 +332,7 @@ class Job():
         self.scrap.driver.quit()
         self.scrap.book.save(self.scrap.path)
         self.info_scrap_flg = False
-        
-        # finishing scrap
-        self.check_flg = True
-        while scrap.check(self.path) == False:
-            scrap.apper_adjst(self.path)
-        print("OK")
-        self.check_flg = False
-        self.end_flg = True
+    """
 
     def retry(self):
         """Scrapingが失敗したとき（自動再起動でも）手動で再スクレイピングする"""
