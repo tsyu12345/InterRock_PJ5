@@ -91,11 +91,10 @@ class Windows:
                     area_list = self.value['pref_name'].split(",")
                     job = Job(self.value['path'], area_list,
                               self.value['store_class'])
-                    th1 = th.Thread(target=job.run, daemon=True)
-                    th1.start()
+                    job_thread = th.Thread(target=job.run, daemon=True)
+                    job_thread.start()
                     running = True
                     while running:
-
                         if job.url_scrap_flg:
                             #sig.popup_no_buttons('掲載URLを抽出処理中です。ブラウザの動作を止めないでください。', non_blocking=True, auto_close=True)
                             page_cnt = job.scrap.page_count
@@ -251,7 +250,7 @@ class Job():
         self.end_flg = False
         self.detati_flg = False
         self.exception_flg = False
-        self.pool = Pool(2)
+        self.pool = Pool()
 
     def run(self):
         # url scraiping
@@ -278,6 +277,7 @@ class Job():
             
             if self.url_scrap_flg == False and complete_row >= self.scrap.sheet.max_row and complete_row != 2:
                 #すべてが終了したとき
+                print("scrap end")
                 self.info_scrap_flg = False
                 break
 
@@ -289,6 +289,7 @@ class Job():
                     and self.scrap.sheet.cell(row=row, column=2).value == None):#info_scrap未実施                     
                     if self.scrap_cnt % 100 == 0:
                         self.scrap.restart(row)
+                    print("scrap:" + str(row))
                     self.scrap.info_scrap(row)
                     self.scrap_cnt += 1
                 else:#URL未抽出行に到達
