@@ -45,6 +45,7 @@ class Scraping():
         self.driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
         self.counter = 0
         self.page_count = 1
+        self.sheet_row = 1
         #self.search_end_flg = False
         #self.area = area
         #self.store_class = store_class
@@ -145,6 +146,7 @@ class Scraping():
                     self.sheet.cell(row=r+1, column=6, value=area)#エリア
                     self.sheet.cell(row=r+1, column=8, value=url)#URL
                     #print(self.sheet.cell(row=r+1, column=8).value)
+                self.sheet_row = self.sheet.max_row
                 try:
                     pre_url = driver.current_url
                     #pre_index = i
@@ -188,6 +190,7 @@ class Scraping():
             self.driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
             wait = WebDriverWait(self.driver, 180)
             self.driver.get(url)
+            #issues: urlに''が渡されるとInvaild argument Exceptionが発生し処理が止まる。
         else:
             pass
         wait.until(EC.visibility_of_all_elements_located)
@@ -420,37 +423,34 @@ class Test():
         self.url_flg = True
         # info scraiping
         #p.join()s
-        complete_row = 2 #初期値2行目
+        completed_row = 2 #初期値2行目
+        ready_row = 1 #初期値1行目
         self.info_flg = True
         while self.info_flg:
-            try:
-                ready_row = self.job.sheet.max_row #現在の最大読み込み行数
-                print("redy:"+str(ready_row))
-            except RuntimeError:
-                print(ready_row)
-                ready_row = self.job.sheet.max_row #現在の最大読み込み行数
-                pass
-            #print(ready_row)
             
             if ready_row != 1 and th1.is_alive != True and self.url_flg == True: 
                 #url_scrap終了時
                 print("url search end")
                 self.url_flg = False
             
-            if self.url_flg == False and complete_row == self.job.sheet.max_row and complete_row != 1:
-                self.info_flg = False
-                print("break")
-                break
-            
             #print("compleate row / loaded row : " + str(complete_row) + "/" + str(ready_row))
-            for row in range(complete_row, ready_row+1):
+            for row in range(completed_row, ready_row+1):
                 if (self.job.sheet.cell(row=row, column=8).value != None #URL抽出済
                     and self.job.sheet.cell(row=row, column=2).value == None):#info_scrap未実施                     
                     print("scrap:" + str(row))
                     self.job.info_scrap(row)
                 else:#URL未抽出行に到達
-                    complete_row = row #次回開始行の更新
+                    completed_row = row+1
                     break #更新のためbreak
+            
+            ready_row = self.job.sheet_row
+            
+            if self.url_flg == False and completed_row == ready_row:
+                #全終了判定
+                self.info_flg = False
+                print("break")
+                break
+            
             
     
         self.job.driver.quit()
