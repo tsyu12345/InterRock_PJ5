@@ -8,6 +8,7 @@ import openpyxl as px
 from openpyxl.styles import PatternFill
 from bs4 import BeautifulSoup as bs
 from multiprocessing import Pool 
+import threading as th
 import time
 import datetime
 import re
@@ -28,7 +29,7 @@ class Scraping():
         self.options = webdriver.ChromeOptions()
         self.options.add_argument("start-maximized")
         self.options.add_argument("enable-automation")
-        self.options.add_argument("--headless")
+        #self.options.add_argument("--headless")
         self.options.add_argument("--no-sandbox")
         self.options.add_argument("--disable-infobars")
         self.options.add_argument('--disable-extensions')
@@ -412,40 +413,45 @@ class Test():
         self.info_flg = False
         #cnt:int = 0
 
-    def url_search(self):
-        print("url_search strat")
-        self.url_flg = True
-        self.job.url_scrap('高知県', 'ヘアサロン')
-
     def main(self):
-        p = Pool(4)
-        search_process = p.apply_async(self.url_search)
+        th1 = th.Thread(target=self.job.url_scrap, args=('高知県', 'ヘアサロン')) 
+        th1.start()
+        #search_process.get()
+        self.url_flg = True
         # info scraiping
+        #p.join()s
         complete_row = 2 #初期値2行目
         self.info_flg = True
         while self.info_flg:
-            ready_row = self.job.sheet.max_row #現在の最大読み込み行数
-            print(ready_row)
-            if search_process.ready(): 
+            try:
+                ready_row = self.job.sheet.max_row #現在の最大読み込み行数
+                print("redy:"+str(ready_row))
+            except RuntimeError:
+                print(ready_row)
+                ready_row = self.job.sheet.max_row #現在の最大読み込み行数
+                pass
+            #print(ready_row)
+            
+            if ready_row != 1 and th1.is_alive != True and self.url_flg == True: 
                 #url_scrap終了時
-                print(search_process.successful())
                 print("url search end")
                 self.url_flg = False
             
-            if self.url_flg == False and complete_row == ready_row:
+            if self.url_flg == False and complete_row == self.job.sheet.max_row and complete_row != 1:
                 self.info_flg = False
                 print("break")
                 break
             
-        print("compleate row / loaded row : " + str(complete_row) + "/" + str(ready_row))
-        for row in range(complete_row, ready_row+1):
-            if (self.job.sheet.cell(row=row, column=8).value != None #URL抽出済
-                and self.job.sheet.cell(row=row, column=2).value == None):#info_scrap未実施                     
-                print("scrap:" + str(row))
-                self.job.info_scrap(row)
-            else:#URL未抽出行に到達
-                break #更新のためbreak
-        complete_row = ready_row #次回開始行の更新
+            #print("compleate row / loaded row : " + str(complete_row) + "/" + str(ready_row))
+            for row in range(complete_row, ready_row+1):
+                if (self.job.sheet.cell(row=row, column=8).value != None #URL抽出済
+                    and self.job.sheet.cell(row=row, column=2).value == None):#info_scrap未実施                     
+                    print("scrap:" + str(row))
+                    self.job.info_scrap(row)
+                else:#URL未抽出行に到達
+                    complete_row = row #次回開始行の更新
+                    break #更新のためbreak
+            
     
         self.job.driver.quit()
         self.job.book.save(self.job.path)
@@ -454,4 +460,5 @@ if __name__ == "__main__":
 
     test = Test()
     test.main()
+    #test.main()
 
