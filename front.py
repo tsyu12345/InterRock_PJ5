@@ -7,7 +7,7 @@ from selenium.common.exceptions import TimeoutException, WebDriverException
 import sys
 #from concurrent.futures import ThreadPoolExecutor as TPE
 import threading as th
-from multiprocessing import Pool
+#from multiprocessing import Pool
 import time
 
 
@@ -95,26 +95,6 @@ class Windows:
                     job_thread.start()
                     running = True
                     while running:
-                        if job.url_scrap_flg:
-                            #sig.popup_no_buttons('掲載URLを抽出処理中です。ブラウザの動作を止めないでください。', non_blocking=True, auto_close=True)
-                            page_cnt = job.scrap.page_count
-                            prog_count = job.scrap.counter
-                            """
-                            try:
-                                cancel = sig.one_line_progress_meter("処理中です...", prog_count, page_cnt, 'prog', "掲載URLを抽出しています。しばらくお待ちください。",orientation='h')
-
-                            except TypeError:
-                                cancel = sig.OneLineProgressMeter(
-                                    "処理中です...", 0, 1, 'prog', "現在準備中です。")
-                            
-                            if cancel == False and job.detati_flg == True and job.end_flg == False:
-                                print("detati in ")
-                                sig.popup_no_buttons('中止処理中です...。', non_blocking=True, auto_close=True)
-                                detati = True
-                                running = False
-                                break
-                            """
-                        #cancel = sig.popup_cancel('抽出処理中です。これには数時間かかることがあります。\n中断するには’Cancelled’ボタンを押してください。')
                         if job.info_scrap_flg:
                             try:   
                                 cancel = sig.one_line_progress_meter("処理中です...", job.scrap_cnt, job.scrap_sum, 'prog', "店舗情報を抽出しています。\nこれには数時間かかることがあります。", orientation='h',)
@@ -250,60 +230,51 @@ class Job():
         self.end_flg = False
         self.detati_flg = False
         self.exception_flg = False
-        self.pool = Pool()
 
     def run(self):
-        # url scraiping
-        self.url_scrap_flg = True
         if self.junle == 'すべてのジャンル':
+            self.url_scrap_flg = True
             self.detati_flg = True
-            search_process = self.pool.apply_async(self.scrap.all_scrap, args=[self.area_list])
-            #self.scrap.all_scrap(self.area_list)
+            thread = th.Thread(target=self.scrap.all_scrap, args=(self.area_list))
         else:
             for area in self.area_list:
-                self.scrap.counter = 0
+                self.url_scrap_flg = True
                 self.detati_flg = True
-                search_process = self.pool.apply_async(self.scrap.url_scrap, args=[area, self.junle])
-        
-        # info scraiping
-        complete_row = 2 #初期値2行目
+                thread = th.Thread(target=self.scrap.url_scrap, args=(area, self.junle))
+        thread.start() #登録したthreadを開始
+        #InfoScraping Process
+        scraped_row = 2 #初期値2行目
+        readyed_row = 1 #初期値1行目
         self.info_scrap_flg = True
-        while True:
-            if search_process.ready(): 
-                #url_scrap終了時
-                print(search_process.successful())
-                print("search end")
+        
+        while self.info_scrap_flg:
+            if thread.is_alive() != True and readyed_row != 1 and self.url_scrap_flg == True:
+                #url_scrapが終了したとき
                 self.url_scrap_flg = False
             
-            if self.url_scrap_flg == False and complete_row >= self.scrap.sheet.max_row and complete_row != 2:
-                #すべてが終了したとき
-                print("scrap end")
+            if self.url_scrap_flg == False and scraped_row == readyed_row and self.info_scrap_flg == True:
+                #全抽出処理終了判定
+                print("break!")
                 self.info_scrap_flg = False
                 break
 
-            ready_row = self.scrap.sheet.max_row #現在の最大読み込み行数
-            self.scrap_sum = ready_row #プログレスバー用カウントの更新
-            print("compleate row / loaded row : " + str(complete_row) + "/" + str(ready_row))
-            for row in range(complete_row, ready_row+1):
+            for row in range(scraped_row, readyed_row+1):
                 if (self.scrap.sheet.cell(row=row, column=8).value != None #URL抽出済
                     and self.scrap.sheet.cell(row=row, column=2).value == None):#info_scrap未実施                     
-                    if self.scrap_cnt % 100 == 0:
-                        self.scrap.restart(row)
                     print("scrap:" + str(row))
                     self.scrap.info_scrap(row)
-                    self.scrap_cnt += 1
+                    self.scrap_cnt += 1 
                 else:#URL未抽出行に到達
+                    scraped_row = row
                     break #更新のためbreak
-            complete_row = ready_row #次回開始行の更新
-
-        """
-        save data file
-        """
+            
+            readyed_row = self.scrap.sheet_row #最大読み込み行数の更新
+            self.scrap_sum = readyed_row
+       
+        #save data file
         self.detati_flg = False
-        #sig.popup_no_buttons('保存中...。', non_blocking=True, auto_close=True)
         self.scrap.driver.quit()
         self.scrap.book.save(self.scrap.path)
-        self.info_scrap_flg = False
         # finishing scrap
         self.check_flg = True
         while scrap.check(self.path) == False:
@@ -336,7 +307,10 @@ class Job():
     """
 
     def retry(self):
-        """Scrapingが失敗したとき（自動再起動でも）手動で再スクレイピングする"""
+        """
+        Scrapingが失敗したとき（自動再起動でも）手動で再スクレイピングする。
+        branch:dev_retry_scraping
+        """
     def cancel(self):
         self.scrap.book.save(self.path)
         self.scrap.driver.quit()
