@@ -223,11 +223,13 @@ class Scraping():
         try:
             if pref_tf:
                 store_name_tag = soup.select_one('p.detailTitle > a')
-                store_name = store_name_tag.get_text()
+                store_name = store_name_tag.get_text() if store_name_tag != None else None
+                #store_name = store_name_tag.get_text()
                 print("店名：" + store_name)
                 st_name_kana_tag = soup.select_one(
                     'div > p.fs10.fgGray')
-                st_name_kana = st_name_kana_tag.get_text()
+                st_name_kana = st_name_kana_tag.get_text() if st_name_kana_tag != None else None
+                #st_name_kana = st_name_kana_tag.get_text()
                 print("店名カナ：" + st_name_kana)
                 try:
                     tel_tag = soup.select_one(
@@ -238,12 +240,13 @@ class Scraping():
                     soup_tel = bs(html_tel, 'lxml')
                     tel_num_tag = soup_tel.select_one(
                         'table > tr > td')
-                    tel_num = tel_num_tag.get_text()
+                    tel_num = tel_num_tag.get_text() if tel_num_tag != None else None
+                    #tel_num = tel_num_tag.get_text()
                     tel_num = str(tel_num)
                     tel_num = tel_num.replace(' ', "")
                     print("TEL : " + tel_num)
                 except:
-                    tel_num = ""
+                    tel_num = None
                     pass
                     # ヘッダー画像の有無
                 try:
@@ -256,12 +259,12 @@ class Scraping():
                     # self.sheet.cell(row=index, column=14, value="無")
                     pass
                 catch_copy_tag = soup.select_one('div > p > b > strong')
-                catch_copy = catch_copy_tag.get_text()
-
+                catch_copy = catch_copy_tag.get_text() if catch_copy_tag != None else None
+                #catch_copy = catch_copy_tag.get_text()
                 pankuzu_tag = soup.select('#preContents > ol > li')
                 pankuzu = ""
                 for pan in pankuzu_tag:
-                    pankuzu += pan.get_text()
+                    pankuzu += pan.get_text() if pan != None else ""
                 print(pankuzu)
 
                 slide_img_tag = soup.select(
