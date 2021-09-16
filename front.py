@@ -5,7 +5,7 @@ import traceback
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException, WebDriverException
 import sys
-#from concurrent.futures import ThreadPoolExecutor as TPE
+#from concurrent.futures import ProcessPoolExecutor as Executer 
 import threading as th
 #from multiprocessing import Pool
 import time
@@ -63,7 +63,7 @@ class Windows:
 
     def display(self):
         self.win = sig.Window("HotPepperBeautyスクレイピングツール",
-                              self.layout(), icon="icon2.ico")
+                              self.layout(), icon="e6832bee44cfe3a3844f0a2587ee4bc4_xxo.ico")
         #self.sub_win = sig.Window("抽出実行", self.pop_layout(), icon="icon2.ico")
         running = False
         comp_flg = False
@@ -97,7 +97,7 @@ class Windows:
                     while running:
                         if job.info_scrap_flg:
                             try:   
-                                cancel = sig.one_line_progress_meter("処理中です...", job.scrap_cnt, job.scrap_sum, 'prog', "店舗情報を抽出しています。\nこれには数時間かかることがあります。", orientation='h',)
+                                cancel = sig.one_line_progress_meter("処理中です...", job.scrap_cnt, job.scrap.sheet_row, 'prog', "店舗情報を抽出しています。\nこれには数時間かかることがあります。", orientation='h',)
                             except (TypeError, RuntimeError):
                                 cancel = sig.OneLineProgressMeter(
                                     "処理中です...", 0, 1, 'prog', "現在準備中です。")
@@ -232,15 +232,19 @@ class Job():
         self.exception_flg = False
 
     def run(self):
+        #executer = Executer(max_workers=2)
         if self.junle == 'すべてのジャンル':
             self.url_scrap_flg = True
             self.detati_flg = True
-            thread = th.Thread(target=self.scrap.all_scrap, args=(self.area_list))
+            #future = executer.submit(self.scrap.all_scrap, self.area_list)
+            thread = th.Thread(target=self.scrap.all_scrap, args=([self.area_list]), daemon=True)
         else:
             for area in self.area_list:
                 self.url_scrap_flg = True
                 self.detati_flg = True
-                thread = th.Thread(target=self.scrap.url_scrap, args=(area, self.junle))
+                #future = executer.submit(self.scrap.url_scrap, area, self.junle)
+                thread = th.Thread(target=self.scrap.url_scrap, args=([area, self.junle]))
+        
         thread.start() #登録したthreadを開始
         #InfoScraping Process
         scraped_row = 2 #初期値2行目
@@ -250,6 +254,7 @@ class Job():
         while self.info_scrap_flg:
             if thread.is_alive() != True and readyed_row != 1 and self.url_scrap_flg == True:
                 #url_scrapが終了したとき
+                self.scrap.sub_driver.quit()
                 self.url_scrap_flg = False
             
             if self.url_scrap_flg == False and scraped_row == readyed_row and self.info_scrap_flg == True:
@@ -259,21 +264,28 @@ class Job():
                 break
 
             for row in range(scraped_row, readyed_row+1):
-                if (self.scrap.sheet.cell(row=row, column=8).value != None #URL抽出済
+                if (self.scrap.sheet.cell(row=row, column=8).value not in ('', None)   #URL抽出済
                     and self.scrap.sheet.cell(row=row, column=2).value == None):#info_scrap未実施                     
                     print("scrap:" + str(row))
+                    if self.scrap_cnt % 100 == 0:
+                        self.scrap.restart(row)
                     self.scrap.info_scrap(row)
                     self.scrap_cnt += 1 
-                else:#URL未抽出行に到達
+                elif self.scrap.sheet.cell(row=row, column=8).value == '' : 
+                    #（予防策）info_scrapで対象都道府県でないときに生成される空行（空文字）に当たった場合。
+                    pass
+                elif self.scrap.sheet.cell(row=row, column=8).value == None:#まだ未検索
+                    self.scrap.book.save(self.path)
                     scraped_row = row
                     break #更新のためbreak
             
+            scraped_row = readyed_row
             readyed_row = self.scrap.sheet_row #最大読み込み行数の更新
-            self.scrap_sum = readyed_row
+            print("row is renewd")
        
         #save data file
         self.detati_flg = False
-        self.scrap.driver.quit()
+        self.scrap.main_driver.quit()
         self.scrap.book.save(self.scrap.path)
         # finishing scrap
         self.check_flg = True
@@ -312,8 +324,12 @@ class Job():
         branch:dev_retry_scraping
         """
     def cancel(self):
-        self.scrap.book.save(self.path)
-        self.scrap.driver.quit()
+        try:
+            self.scrap.book.save(self.path)
+            self.scrap.main_driver.quit()
+            self.scrap.sub_driver.quit()
+        except:
+            pass
 
 
 if __name__ == '__main__':

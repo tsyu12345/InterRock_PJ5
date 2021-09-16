@@ -1,5 +1,5 @@
 from selenium import webdriver
-from selenium.common.exceptions import InvalidArgumentException, InvalidSwitchToTargetException, NoSuchElementException, TimeoutException, WebDriverException
+from selenium.common.exceptions import InvalidArgumentException, InvalidSessionIdException, InvalidSwitchToTargetException, NoSuchElementException, TimeoutException, WebDriverException
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
@@ -7,7 +7,9 @@ from selenium.webdriver.common.keys import Keys
 import openpyxl as px
 from openpyxl.styles import PatternFill
 from bs4 import BeautifulSoup as bs
-from multiprocessing import Pool 
+#from multiprocessing import Pool 
+#from concurrent.futures import ProcessPoolExecutor as Executer
+import concurrent.futures
 import threading as th
 import time
 import datetime
@@ -19,17 +21,18 @@ import os
 class Scraping():
     book = px.Workbook()
     sheet = book.worksheets[0]
+    sheet_row = 1
     RETRY = 3
     TIMEOUT = 15
 
     def __init__(self, path):
         self.path = path
         # init driver
-        self.driver_path = resource_path('chromedriver_win32/chromedriver.exe')
+        self.main_driver_path = resource_path('chromedriver_win32/chromedriver.exe')
         self.options = webdriver.ChromeOptions()
         self.options.add_argument("start-maximized")
         self.options.add_argument("enable-automation")
-        #self.options.add_argument("--headless")
+        self.options.add_argument("--headless")
         self.options.add_argument("--no-sandbox")
         self.options.add_argument("--disable-infobars")
         self.options.add_argument('--disable-extensions')
@@ -42,10 +45,10 @@ class Scraping():
         self.options.add_experimental_option("prefs", prefs)
         browser_path = resource_path('chrome-win/chrome.exe')
         self.options.binary_location = browser_path
-        self.driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
+        self.main_driver = webdriver.Chrome(executable_path=self.main_driver_path, options=self.options)
+        self.sub_driver = webdriver.Chrome(executable_path=self.main_driver_path, options=self.options)
         self.counter = 0
         self.page_count = 1
-        self.sheet_row = 1
         #self.search_end_flg = False
         #self.area = area
         #self.store_class = store_class
@@ -105,33 +108,33 @@ class Scraping():
 
     def url_scrap(self, area, store_junle):
         #MAX_RETRY = 3
-        driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
+        #driver = webdriver.Chrome(executable_path=self.main_driver_path, options=self.options)
         print("starting ChromeDriver.exe....")
-        wait = WebDriverWait(driver, 180)#Max wait time(second):180s
-        driver.get("https://beauty.hotpepper.jp/top/")  # top page
-        sr_class = driver.find_element_by_link_text(store_junle)#ジャンル選択
+        wait = WebDriverWait(self.sub_driver, 180)#Max wait time(second):180s
+        self.sub_driver.get("https://beauty.hotpepper.jp/top/")  # top page
+        sr_class = self.sub_driver.find_element_by_link_text(store_junle)#ジャンル選択
         sr_class.click()
         wait.until(EC.visibility_of_element_located((By.ID, "freeWordSearch1")))
-        search = driver.find_element_by_id('freeWordSearch1')
+        search = self.sub_driver.find_element_by_id('freeWordSearch1')
         search.send_keys(area + Keys.ENTER)
         wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, "p.pa.bottom0.right0")))
-        result_pages = driver.find_element_by_css_selector('p.pa.bottom0.right0').text
+        result_pages = self.sub_driver.find_element_by_css_selector('p.pa.bottom0.right0').text
         page_num = re.split('[/ ]', result_pages)
         pages = re.sub(r"\D", "", page_num[1])
         print("pages : " + pages)
         self.page_count = int(pages)
         for i in range(int(pages)):
             if i % 100 == 0 and i > 0:
-                cur_url = driver.current_url
+                cur_url = self.sub_driver.current_url
                 self.book.save(self.path)
-                self.driver.quit()
+                self.sub_driver.quit()
                 time.sleep(5)
-                driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
-                driver.get(cur_url)
+                self.sub_driver = webdriver.Chrome(executable_path=self.main_driver_path, options=self.options)
+                self.sub_driver.get(cur_url)
                 
             #sig.OneLineProgressMeter("掲載URLの抽出中...", self.counter, int(pages))
             try:
-                html = driver.page_source
+                html = self.sub_driver.page_source
                 soup = bs(html, 'lxml')
                 if store_junle == 'ヘアサロン':
                     links_list = soup.select("#mainContents > ul > li > div.slnCassetteHeader > h3 > a")
@@ -147,23 +150,24 @@ class Scraping():
                     self.sheet.cell(row=r+1, column=8, value=url)#URL
                     #print(self.sheet.cell(row=r+1, column=8).value)
                 self.sheet_row = self.sheet.max_row
+                self.book.save(self.path)
                 try:
-                    pre_url = driver.current_url
+                    pre_url = self.sub_driver.current_url
                     #pre_index = i
-                    next_btn = driver.find_element_by_link_text("次へ")
+                    next_btn = self.sub_driver.find_element_by_link_text("次へ")
                     next_btn.click()
                     wait.until(EC.visibility_of_all_elements_located)
                 except NoSuchElementException:
                     break
             except (WebDriverException, TimeoutException):
                 self.book.save(self.path)
-                self.driver.quit()
+                self.sub_driver.quit()
                 time.sleep(10)
                 print("starting ChromeDriver.exe....")
-                driver = webdriver.Chrome(
-                    executable_path=self.driver_path, options=self.options)
-                driver.get(pre_url)
-                next_btn = self.driver.find_element_by_link_text("次へ")
+                self.sub_driver = webdriver.Chrome(
+                    executable_path=self.main_driver_path, options=self.options)
+                self.sub_driver.get(pre_url)
+                next_btn = self.sub_driver.find_element_by_link_text("次へ")
                 next_btn.click()
                 wait.until(EC.visibility_of_all_elements_located)
                 continue
@@ -173,28 +177,30 @@ class Scraping():
 
         self.book.save(self.path)
         print("search complete")
-        driver.quit()
-        #self.driver.close()
+        #self.sub_driver.quit()
+        #self.main_driver.close()
 
     def info_scrap(self, index):
         #conunter = 0
-        wait = WebDriverWait(self.driver, 180)
+        wait = WebDriverWait(self.main_driver, 180)
         try:
             url = self.sheet.cell(row=index, column=8).value
-            self.driver.get(url)
+            self.main_driver.get(url)
         except (WebDriverException, TimeoutException):
             self.book.save(self.path)
-            self.driver.delete_all_cookies()
-            self.driver.quit()
+            self.main_driver.delete_all_cookies()
+            self.main_driver.quit()
             time.sleep(30)#強制30秒待機
-            self.driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
-            wait = WebDriverWait(self.driver, 180)
-            self.driver.get(url)
+            self.main_driver = webdriver.Chrome(executable_path=self.main_driver_path, options=self.options)
+            wait = WebDriverWait(self.main_driver, 180)
+            self.main_driver.get(url)
             #issues: urlに''が渡されるとInvaild argument Exceptionが発生し処理が止まる。
         else:
             pass
         wait.until(EC.visibility_of_all_elements_located)
-        html = self.driver.page_source
+        
+        html = self.main_driver.page_source
+        
         soup = bs(html, 'lxml')
         table_value = soup.select(
             'div.mT30 > table > tbody > tr > td')
@@ -212,9 +218,9 @@ class Scraping():
                     '東京都|北海道|(?:京都|大阪)府|.{2,3}県', all_address)  # 県名とそれ以降を分離
                 prefecture = prefecture_search.group()  # 県名
                 if prefecture != self.sheet.cell(row=index, column=6).value:
-                    self.sheet.cell(row=index, column=8, value="")
-                    self.sheet.cell(row=index, column=6, value="")
-                    self.sheet.cell(row=index, column=1, value="")
+                    self.sheet.cell(row=index, column=8, value='')
+                    self.sheet.cell(row=index, column=6, value='')
+                    self.sheet.cell(row=index, column=1, value='')
                     pref_tf = False
                 jis_code = self.call_jis_code(prefecture)
                 municipality = address_low[1]  # それ以降
@@ -250,7 +256,7 @@ class Scraping():
                     pass
                     # ヘッダー画像の有無
                 try:
-                    self.driver.find_element_by_css_selector(
+                    self.main_driver.find_element_by_css_selector(
                         'div.slnHeaderSliderPhoto.jscViewerPhoto')
                     head_img_yn = "有"
                     # self.sheet.cell(row=index, column=14, value="有")
@@ -303,13 +309,16 @@ class Scraping():
             pass
 
     def restart(self, index):
+        """
+        info_scrapに使用するブラウザの再起動
+        """
         self.book.save(self.path)
-        self.driver.delete_all_cookies()
-        self.driver.quit()
+        self.main_driver.delete_all_cookies()
+        self.main_driver.quit()
         time.sleep(5)
-        self.driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
+        self.main_driver = webdriver.Chrome(executable_path=self.main_driver_path, options=self.options)
         url = self.sheet.cell(row=index, column=8).value
-        self.driver.get(url)
+        self.main_driver.get(url)
 
     def call_jis_code(self, key):
         pref_jiscode = {
@@ -410,57 +419,63 @@ def check(path):
     return True
 
 
-class Test():
 
-    def __init__(self):
-        self.job = Scraping('./kouti_test.xlsx')
-        self.job.init_work_book()
-        self.url_flg = False
-        self.info_flg = False
-        #cnt:int = 0
-
-    def main(self):
-        th1 = th.Thread(target=self.job.url_scrap, args=('高知県', 'ヘアサロン')) 
-        th1.start()
-        #search_process.get()
-        self.url_flg = True
-        # info scraiping
-        #p.join()s
-        completed_row = 2 #初期値2行目
-        ready_row = 1 #初期値1行目
-        self.info_flg = True
-        while self.info_flg:
-            
-            if ready_row != 1 and th1.is_alive != True and self.url_flg == True: 
-                #url_scrap終了時
-                print("url search end")
-                self.url_flg = False
-            
-            #print("compleate row / loaded row : " + str(complete_row) + "/" + str(ready_row))
-            for row in range(completed_row, ready_row+1):
-                if (self.job.sheet.cell(row=row, column=8).value != None #URL抽出済
-                    and self.job.sheet.cell(row=row, column=2).value == None):#info_scrap未実施                     
-                    print("scrap:" + str(row))
-                    self.job.info_scrap(row)
-                else:#URL未抽出行に到達
-                    completed_row = row+1
-                    break #更新のためbreak
-            
-            ready_row = self.job.sheet_row
-            
-            if self.url_flg == False and completed_row == ready_row:
-                #全終了判定
-                self.info_flg = False
-                print("break")
-                break
-            
-            
-    
-        self.job.driver.quit()
-        self.job.book.save(self.job.path)
 
 if __name__ == "__main__":
+    class Test():
 
+        def __init__(self):
+            self.job = Scraping('./kouti_test.xlsx')
+            self.job.init_work_book()
+            self.url_flg = False
+            self.info_flg = False
+            #cnt:int = 0
+
+        def main(self):
+            #th1 = th.Thread(target=self.job.url_scrap, args=('高知県', 'ヘアサロン')) 
+            #th1.start()
+            #search_process.get()
+            print("main process!")
+            executer = Executer(max_workers=2)
+            future = executer.submit(self.job.url_scrap, '高知県', 'ヘアサロン')
+            ft = concurrent.futures.as_completed(future)
+            print("submitted")
+            self.url_flg = True
+            # info scraiping
+            #p.join()s
+            completed_row = 2 #初期値2行目
+            ready_row = 1 #初期値1行目
+            self.info_flg = True
+            while self.info_flg:
+                
+                if ready_row != 1 and future.done() and self.url_flg == True: 
+                    #url_scrap終了時
+                    print("url search end")
+                    self.url_flg = False
+                
+                #print("compleate row / loaded row : " + str(complete_row) + "/" + str(ready_row))
+                for row in range(completed_row, ready_row+1):
+                    if (self.job.sheet.cell(row=row, column=8).value != None #URL抽出済
+                        and self.job.sheet.cell(row=row, column=2).value == None):#info_scrap未実施                     
+                        print("scrap:" + str(row))
+                        self.job.info_scrap(row)
+                    else:#URL未抽出行に到達
+                        completed_row = row+1
+                        break #更新のためbreak
+                
+                ready_row = self.job.sheet_row
+                
+                if self.url_flg == False and completed_row == ready_row:
+                    #全終了判定
+                    self.info_flg = False
+                    print("break")
+                    break
+                
+                
+        
+            self.job.driver.quit()
+            self.job.book.save(self.job.path)
+    
     test = Test()
     test.main()
     #test.main()
