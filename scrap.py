@@ -49,6 +49,7 @@ class Scraping():
         self.sub_driver = webdriver.Chrome(executable_path=self.main_driver_path, options=self.options)
         self.counter = 0
         self.page_count = 1
+        self.writeRow = 1
         #self.search_end_flg = False
         #self.area = area
         #self.store_class = store_class
@@ -141,13 +142,20 @@ class Scraping():
                 else:
                     links_list = soup.select("#mainContents > ul > li > div.slcHeadWrap > div > div.slcHeadContentsInner > h3 > a")
                 print(links_list)
+                #sheet.max_rowの呼び出しの際に発生するRunTimeError対策
+                try:
+                    write_row = self.sheet.max_row
+                except RuntimeError: #max_rowが取得できなかった場合は、手動でのindexに切り替え。
+                    write_row = self.writeRow
+                
                 for a in links_list:
                     url = a.get('href')
                     print(url)
-                    r = self.sheet.max_row
-                    self.sheet.cell(row=r+1, column=1, value=store_junle)#ジャンル
-                    self.sheet.cell(row=r+1, column=6, value=area)#エリア
-                    self.sheet.cell(row=r+1, column=8, value=url)#URL
+                    write_row += 1
+                    self.writeRow += 1
+                    self.sheet.cell(row=write_row+1, column=1, value=store_junle)#ジャンル
+                    self.sheet.cell(row=write_row+1, column=6, value=area)#エリア
+                    self.sheet.cell(row=write_row+1, column=8, value=url)#URL
                     #print(self.sheet.cell(row=r+1, column=8).value)
                 self.sheet_row = self.sheet.max_row
                 self.book.save(self.path)
