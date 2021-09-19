@@ -239,7 +239,6 @@ class Job():
                     "ネイル・まつげサロン",
                     "リラクサロン",
                     "エステサロン",
-                    "すべてのジャンル"
                     ]
                 for menu in junle_list: 
                     self.scrap.url_scrap(area, menu)
