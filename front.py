@@ -231,24 +231,30 @@ class Job():
         self.detati_flg = False
         self.exception_flg = False
 
+    def __search(self):
+        for area in self.area_list:
+            if self.junle == 'すべてのジャンル':
+                junle_list = [
+                    "ヘアサロン",
+                    "ネイル・まつげサロン",
+                    "リラクサロン",
+                    "エステサロン",
+                    "すべてのジャンル"
+                    ]
+                for menu in junle_list: 
+                    self.scrap.url_scrap(area, menu)
+            else:
+                self.scrap.url_scrap(area, self.junle)
+
     def run(self):
-        #executer = Executer(max_workers=2)
-        if self.junle == 'すべてのジャンル':
-            self.url_scrap_flg = True
-            self.detati_flg = True
-            #future = executer.submit(self.scrap.all_scrap, self.area_list)
-            thread = th.Thread(target=self.scrap.all_scrap, args=([self.area_list]), daemon=True)
-        else:
-            for area in self.area_list:
-                self.url_scrap_flg = True
-                self.detati_flg = True
-                #future = executer.submit(self.scrap.url_scrap, area, self.junle)
-                thread = th.Thread(target=self.scrap.url_scrap, args=([area, self.junle]))
-        
-        thread.start() #登録したthreadを開始
+        self.url_scrap_flg = True
+        self.detati_flg = True
+        thread = th.Thread(target=self.__search)
+        thread.start()
         #InfoScraping Process
         scraped_row = 2 #初期値2行目
         readyed_row = 1 #初期値1行目
+        temp_row = 2
         self.info_scrap_flg = True
         
         while self.info_scrap_flg:
@@ -264,6 +270,7 @@ class Job():
                 break
 
             for row in range(scraped_row, readyed_row+1):
+               
                 if (self.scrap.sheet.cell(row=row, column=8).value not in ('', None)   #URL抽出済
                     and self.scrap.sheet.cell(row=row, column=2).value == None):#info_scrap未実施                     
                     print("scrap:" + str(row))
@@ -278,6 +285,8 @@ class Job():
                     self.scrap.book.save(self.path)
                     scraped_row = row
                     break #更新のためbreak
+            
+
             
             scraped_row = readyed_row
             readyed_row = self.scrap.sheet_row #最大読み込み行数の更新
