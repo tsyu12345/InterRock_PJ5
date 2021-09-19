@@ -153,9 +153,9 @@ class Scraping():
                     print(url)
                     write_row += 1
                     self.writeRow += 1
-                    self.sheet.cell(row=write_row+1, column=1, value=store_junle)#ジャンル
-                    self.sheet.cell(row=write_row+1, column=6, value=area)#エリア
-                    self.sheet.cell(row=write_row+1, column=8, value=url)#URL
+                    self.sheet.cell(row=write_row, column=1, value=store_junle)#ジャンル
+                    self.sheet.cell(row=write_row, column=6, value=area)#エリア
+                    self.sheet.cell(row=write_row, column=8, value=url)#URL
                     #print(self.sheet.cell(row=r+1, column=8).value)
                 self.sheet_row = self.sheet.max_row
                 self.book.save(self.path)
