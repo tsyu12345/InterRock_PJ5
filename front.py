@@ -342,5 +342,8 @@ class Job():
 
 
 if __name__ == '__main__':
+    startTime = time.time()
     main_win = Windows()
     main_win.display()
+    endTime = time.time() - startTime
+    print("Total Elapsed Time:" + str(endTime) + "[sec]")
