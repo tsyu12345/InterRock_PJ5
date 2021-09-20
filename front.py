@@ -252,6 +252,7 @@ class Job():
 
     def run(self):
         # url scraiping
+        startTime = time.time()
         print("hre")
         self.url_scrap_flg = True
         if self.junle == 'すべてのジャンル':
@@ -296,6 +297,8 @@ class Job():
         print("OK")
         self.check_flg = False
         self.end_flg = True
+        endTime = time.time()-startTime
+        print("Total Elapsed Time:" + str(endTime) + "[sec]")
 
 
     def cancel(self):
