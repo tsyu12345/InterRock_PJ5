@@ -157,7 +157,10 @@ class Scraping():
                     self.sheet.cell(row=write_row, column=6, value=area)#エリア
                     self.sheet.cell(row=write_row, column=8, value=url)#URL
                     #print(self.sheet.cell(row=r+1, column=8).value)
-                self.sheet_row = self.sheet.max_row
+                try:
+                    self.sheet_row = self.sheet.max_row
+                except RuntimeError:
+                    self.sheet_row = self.writeRow
                 #self.book.save(self.path)
                 #Issue:↑で一時保存するとinfo_scrap()との衝突するのかPermissionErrorが発生する場合がある。
                 try:
