@@ -9,7 +9,6 @@ from openpyxl.styles import PatternFill
 from bs4 import BeautifulSoup as bs
 #from multiprocessing import Pool 
 #from concurrent.futures import ProcessPoolExecutor as Executer
-import concurrent.futures
 import threading as th
 import time
 import datetime
