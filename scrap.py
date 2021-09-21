@@ -140,6 +140,7 @@ class Scraping():
                     self.sheet.cell(row=r+1, column=6, value=area)#エリア
                     self.sheet.cell(row=r+1, column=8, value=url)#URL
                     #print(self.sheet.cell(row=r+1, column=8).value)
+                self.sheet_row = self.sheet.max_row
                 try:
                     pre_url = self.driver.current_url
                     pre_index = i
@@ -182,6 +183,7 @@ class Scraping():
             self.driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
             wait = WebDriverWait(self.driver, 180)
             self.driver.get(url)
+            #issues: urlに''が渡されるとInvaild argument Exceptionが発生し処理が止まる。
         else:
             pass
         wait.until(EC.visibility_of_all_elements_located)
