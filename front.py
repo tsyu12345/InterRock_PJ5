@@ -275,6 +275,7 @@ class Job():
                     print("scrap:" + str(row))
                     if self.scrap_cnt % 100 == 0:
                         self.scrap.restart(row)
+                    print("scrap:" + str(row))
                     self.scrap.info_scrap(row)
                     self.scrap_cnt += 1 
                 elif self.scrap.sheet.cell(row=row, column=8).value == '' : 
