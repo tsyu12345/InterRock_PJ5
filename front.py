@@ -221,6 +221,7 @@ class Job():
         self.area_list = area_list
         self.junle = junle
         self.scrap = Scraping(path)
+        self.sub_scrap = Scraping(path, use_sub_driver=False) 
         self.scrap.init_work_book()
         self.url_scrap_flg = False
         self.info_scrap_flg = False
@@ -253,7 +254,6 @@ class Job():
         #InfoScraping Process
         scraped_row = 2 #初期値2行目
         readyed_row = 1 #初期値1行目
-        temp_row = 2
         self.info_scrap_flg = True
         
         while self.info_scrap_flg:
@@ -262,22 +262,28 @@ class Job():
                 self.scrap.sub_driver.quit()
                 self.url_scrap_flg = False
             
-            if self.url_scrap_flg == False and scraped_row == readyed_row and self.info_scrap_flg == True:
+            if self.url_scrap_flg == False and scraped_row == readyed_row+1 and self.info_scrap_flg == True:
                 #全抽出処理終了判定
                 print("break!")
                 self.info_scrap_flg = False
                 break
 
-            for row in range(scraped_row, readyed_row+1):
+            for row in range(scraped_row, readyed_row, 2):
                
                 if (self.scrap.sheet.cell(row=row, column=8).value not in ('', None)   #URL抽出済
                     and self.scrap.sheet.cell(row=row, column=2).value == None):#info_scrap未実施                     
                     print("scrap:" + str(row))
                     if self.scrap_cnt % 100 == 0:
                         self.scrap.restart(row)
+                        self.scrap.restart(row+1)
                     print("scrap:" + str(row))
-                    self.scrap.info_scrap(row)
-                    self.scrap_cnt += 1 
+                    id1 = th.Thread(target=self.scrap.loadHtml, args=([row]))
+                    id2 = th.Thread(target=self.sub_scrap.loadHtml, args=([row+1]))
+                    id1.start()
+                    id2.start()
+                    id1.join()
+                    id2.join()
+                    self.scrap_cnt += 2 
                 elif self.scrap.sheet.cell(row=row, column=8).value == '' : 
                     #（予防策）info_scrapで対象都道府県でないときに生成される空行（空文字）に当たった場合。
                     pass
@@ -288,13 +294,14 @@ class Job():
             
 
             
-            scraped_row = readyed_row
+            scraped_row = readyed_row+1
             readyed_row = self.scrap.sheet_row #最大読み込み行数の更新
             print("row is renewd")
        
         #save data file
         self.detati_flg = False
-        self.scrap.main_driver.quit()
+        #self.scrap.main_driver.quit()
+        self.scrap.driver.quit()
         self.scrap.book.save(self.scrap.path)
         # finishing scrap
         self.check_flg = True
@@ -335,7 +342,7 @@ class Job():
     def cancel(self):
         try:
             self.scrap.book.save(self.path)
-            self.scrap.main_driver.quit()
+            self.scrap.driver.quit()
             self.scrap.sub_driver.quit()
         except:
             pass

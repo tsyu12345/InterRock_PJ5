@@ -1,5 +1,6 @@
 from selenium import webdriver
 from selenium.common.exceptions import InvalidArgumentException, InvalidSessionIdException, InvalidSwitchToTargetException, NoSuchElementException, TimeoutException, WebDriverException
+from selenium.webdriver.chrome.webdriver import WebDriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
@@ -24,10 +25,10 @@ class Scraping():
     RETRY = 3
     TIMEOUT = 15
 
-    def __init__(self, path):
+    def __init__(self, path, use_sub_driver=True):
         self.path = path
         # init driver
-        self.main_driver_path = resource_path('chromedriver_win32/chromedriver.exe')
+        self.driver_path = resource_path('chromedriver_win32/chromedriver.exe')
         self.options = webdriver.ChromeOptions()
         self.options.add_argument("start-maximized")
         self.options.add_argument("enable-automation")
@@ -44,8 +45,9 @@ class Scraping():
         self.options.add_experimental_option("prefs", prefs)
         browser_path = resource_path('chrome-win/chrome.exe')
         self.options.binary_location = browser_path
-        self.main_driver = webdriver.Chrome(executable_path=self.main_driver_path, options=self.options)
-        self.sub_driver = webdriver.Chrome(executable_path=self.main_driver_path, options=self.options)
+        self.driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
+        if use_sub_driver:
+            self.sub_driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
         self.counter = 0
         self.page_count = 1
         self.writeRow = 1
@@ -108,7 +110,7 @@ class Scraping():
 
     def url_scrap(self, area, store_junle):
         #MAX_RETRY = 3
-        #driver = webdriver.Chrome(executable_path=self.main_driver_path, options=self.options)
+        #driver = webdriver.Chrome(executable_path=driver_path, options=self.options)
         print("starting ChromeDriver.exe....")
         wait = WebDriverWait(self.sub_driver, 180)#Max wait time(second):180s
         self.sub_driver.get("https://beauty.hotpepper.jp/top/")  # top page
@@ -129,7 +131,7 @@ class Scraping():
                 self.book.save(self.path)
                 self.sub_driver.quit()
                 time.sleep(5)
-                self.sub_driver = webdriver.Chrome(executable_path=self.main_driver_path, options=self.options)
+                self.sub_driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
                 self.sub_driver.get(cur_url)
                 
             #sig.OneLineProgressMeter("掲載URLの抽出中...", self.counter, int(pages))
@@ -173,7 +175,7 @@ class Scraping():
                 time.sleep(10)
                 print("starting ChromeDriver.exe....")
                 self.sub_driver = webdriver.Chrome(
-                    executable_path=self.main_driver_path, options=self.options)
+                    executable_path=self.driver_path, options=self.options)
                 self.sub_driver.get(pre_url)
                 next_btn = self.sub_driver.find_element_by_link_text("次へ")
                 next_btn.click()
@@ -186,29 +188,33 @@ class Scraping():
         #self.book.save(self.path)
         print("search complete")
         #self.sub_driver.quit()
-        #self.main_driver.close()
+        #driver.close()
 
-    def info_scrap(self, index):
+    def loadHtml(self, index):
         #conunter = 0
-        wait = WebDriverWait(self.main_driver, 180)
+        wait = WebDriverWait(self.driver, 180)
         try:
             url = self.sheet.cell(row=index, column=8).value
-            self.main_driver.get(url)
+            self.driver.get(url)
         except (WebDriverException, TimeoutException):
             self.book.save(self.path)
-            self.main_driver.delete_all_cookies()
-            self.main_driver.quit()
+            self.driver.delete_all_cookies()
+            self.driver.quit()
             time.sleep(30)#強制30秒待機
-            self.main_driver = webdriver.Chrome(executable_path=self.main_driver_path, options=self.options)
-            wait = WebDriverWait(self.main_driver, 180)
-            self.main_driver.get(url)
+            self.driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
+            wait = WebDriverWait(self.driver, 180)
+            self.driver.get(url)
             #issues: urlに''が渡されるとInvaild argument Exceptionが発生し処理が止まる。
         else:
             pass
         wait.until(EC.visibility_of_all_elements_located)
+        html = self.driver.page_source
+        self.__extraction(html, index)
         
-        html = self.main_driver.page_source
-        
+    def __extraction(self, html, index):
+        """
+        HTMLを受け取り、情報を抽出・保存する。
+        """
         soup = bs(html, 'lxml')
         table_value = soup.select(
             'div.mT30 > table > tbody > tr > td')
@@ -263,15 +269,9 @@ class Scraping():
                     tel_num = None
                     pass
                     # ヘッダー画像の有無
-                try:
-                    self.main_driver.find_element_by_css_selector(
-                        'div.slnHeaderSliderPhoto.jscViewerPhoto')
-                    head_img_yn = "有"
-                    # self.sheet.cell(row=index, column=14, value="有")
-                except NoSuchElementException:
-                    head_img_yn = "無"
-                    # self.sheet.cell(row=index, column=14, value="無")
-                    pass
+                head_img_tag = soup.select_one('div.slnHeaderSliderPhoto.jscViewerPhoto')    
+                head_img_yn = "有" if head_img_tag != None else "無"
+
                 catch_copy_tag = soup.select_one('div > p > b > strong')
                 catch_copy = catch_copy_tag.get_text() if catch_copy_tag != None else None
                 #catch_copy = catch_copy_tag.get_text()
@@ -321,12 +321,12 @@ class Scraping():
         info_scrapに使用するブラウザの再起動
         """
         self.book.save(self.path)
-        self.main_driver.delete_all_cookies()
-        self.main_driver.quit()
+        self.driver.delete_all_cookies()
+        self.driver.quit()
         time.sleep(5)
-        self.main_driver = webdriver.Chrome(executable_path=self.main_driver_path, options=self.options)
+        self.driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
         url = self.sheet.cell(row=index, column=8).value
-        self.main_driver.get(url)
+        self.driver.get(url)
 
     def call_jis_code(self, key):
         pref_jiscode = {
