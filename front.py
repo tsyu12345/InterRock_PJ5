@@ -5,7 +5,7 @@ import traceback
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException, WebDriverException
 import sys
-#from concurrent.futures import ProcessPoolExecutor as Executer 
+from concurrent.futures import ProcessPoolExecutor as Executer 
 import threading as th
 #from multiprocessing import Pool
 import time
@@ -100,7 +100,7 @@ class Windows:
                                 cancel = sig.one_line_progress_meter("処理中です...", job.scrap_cnt, job.scrap.sheet_row, 'prog', "店舗情報を抽出しています。\nこれには数時間かかることがあります。", orientation='h',)
                             except (TypeError, RuntimeError):
                                 cancel = sig.OneLineProgressMeter(
-                                    "処理中です...", 0, 1, 'prog', "現在準備中です。")
+                                    "処9理中です...", 0, 1, 'prog', "現在準備中です。")
                                 pass
 
                             if cancel == False and job.detati_flg == True and job.end_flg == False:
