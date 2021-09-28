@@ -5,7 +5,7 @@ import traceback
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException, WebDriverException
 import sys
-#from concurrent.futures import ProcessPoolExecutor as Executer 
+from concurrent.futures import ProcessPoolExecutor
 import threading as th
 #from multiprocessing import Pool
 import time
@@ -222,6 +222,7 @@ class Job():
         self.junle = junle
         self.scrap = Scraping(path)
         self.sub_scrap = Scraping(path, use_sub_driver=False) 
+        self.sub_2_scrap = Scraping(path, use_sub_driver=False)
         self.scrap.init_work_book()
         self.url_scrap_flg = False
         self.info_scrap_flg = False
@@ -249,41 +250,51 @@ class Job():
     def run(self):
         self.url_scrap_flg = True
         self.detati_flg = True
-        thread = th.Thread(target=self.__search)
-        thread.start()
+        #thread = th.Thread(target=self.__search)
+        with ProcessPoolExecutor(max_workers=2) as executer:
+            future = executer.submit(self.__search)
+
+        #thread.start()
         #InfoScraping Process
         scraped_row = 2 #初期値2行目
         readyed_row = 1 #初期値1行目
         self.info_scrap_flg = True
         
         while self.info_scrap_flg:
-            if thread.is_alive() != True and readyed_row != 1 and self.url_scrap_flg == True:
+            if future.done() == True and readyed_row != 1 and self.url_scrap_flg == True:
                 #url_scrapが終了したとき
                 self.scrap.sub_driver.quit()
                 self.url_scrap_flg = False
             
-            if self.url_scrap_flg == False and scraped_row == readyed_row+1 and self.info_scrap_flg == True:
+            if self.url_scrap_flg == False and scraped_row == readyed_row and self.info_scrap_flg == True:
                 #全抽出処理終了判定
                 print("break!")
                 self.info_scrap_flg = False
                 break
 
-            for row in range(scraped_row, readyed_row, 2):
+            for row in range(scraped_row, readyed_row+1, 1):
                
                 if (self.scrap.sheet.cell(row=row, column=8).value not in ('', None)   #URL抽出済
                     and self.scrap.sheet.cell(row=row, column=2).value == None):#info_scrap未実施                     
                     print("scrap:" + str(row))
-                    if self.scrap_cnt % 100 == 0:
+                    if self.scrap_cnt % 180 == 0:
                         self.scrap.restart(row)
-                        self.scrap.restart(row+1)
+                        #self.sub_scrap.restart(row+1)
+                        #self.sub_2_scrap.restart(row+2)
                     print("scrap:" + str(row))
+                    self.scrap.loadHtml(row)
+                    """
                     id1 = th.Thread(target=self.scrap.loadHtml, args=([row]))
                     id2 = th.Thread(target=self.sub_scrap.loadHtml, args=([row+1]))
+                    id3 = th.Thread(target=self.sub_2_scrap.loadHtml, args=([row+2]))
                     id1.start()
                     id2.start()
+                    id3.start()
                     id1.join()
                     id2.join()
-                    self.scrap_cnt += 2 
+                    id3.join()
+                    """
+                    self.scrap_cnt += 1 
                 elif self.scrap.sheet.cell(row=row, column=8).value == '' : 
                     #（予防策）info_scrapで対象都道府県でないときに生成される空行（空文字）に当たった場合。
                     pass
@@ -294,7 +305,7 @@ class Job():
             
 
             
-            scraped_row = readyed_row+1
+            scraped_row = readyed_row
             readyed_row = self.scrap.sheet_row #最大読み込み行数の更新
             print("row is renewd")
        
