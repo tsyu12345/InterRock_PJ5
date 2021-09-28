@@ -9,7 +9,7 @@ import openpyxl as px
 from openpyxl.styles import PatternFill
 from bs4 import BeautifulSoup as bs
 #from multiprocessing import Pool 
-#from concurrent.futures import ProcessPoolExecutor as Executer
+from concurrent.futures import ProcessPoolExecutor as Executer
 import threading as th
 import time
 import datetime
@@ -444,9 +444,10 @@ if __name__ == "__main__":
             #th1.start()
             #search_process.get()
             print("main process!")
-            executer = Executer(max_workers=2)
+            executer = Executer(max_workers=None)
             future = executer.submit(self.job.url_scrap, '高知県', 'ヘアサロン')
-            ft = concurrent.futures.as_completed(future)
+            future.result()
+            #ft =executer.as_completed(future)
             print("submitted")
             self.url_flg = True
             # info scraiping

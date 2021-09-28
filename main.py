@@ -87,7 +87,7 @@ class Job():
     def run(self):
         self.url_scrap_flg = True
         self.detati_flg = True
-        with concurrent.futures.ProcessPoolExecutor(max_workers=2) as executer:
+        with concurrent.futures.ProcessPoolExecutor(max_workers=None) as executer:
             future = executer.submit(self.__search)
         #thread = th.Thread(target=self.__search)
         #thread.start()

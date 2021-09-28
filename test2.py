@@ -1,3 +1,11 @@
+import time
 
-for i in range(2, 10, 2):
-    print(i)
+class Test():
+    def __init__(self, id):
+        self.id = id 
+    
+    def timeResume(self, second):
+        print("start" + str(self.id))
+        time.sleep(second)
+        print("end" + str(self.id))
+    
