@@ -8,8 +8,8 @@ from selenium.webdriver.common.keys import Keys
 import openpyxl as px
 from openpyxl.styles import PatternFill
 from bs4 import BeautifulSoup as bs
-#from multiprocessing import Pool 
-from concurrent.futures import ProcessPoolExecutor
+from multiprocessing import Pool, Manager
+#from concurrent.futures import ProcessPoolExecutor
 import threading as th
 import time
 import datetime
@@ -23,7 +23,7 @@ class Test(object):
     sheet_row = 1
     RETRY = 3
     TIMEOUT = 15
-    def __init__(self, path):
+    def __init__(self, path, row_counter):
         self.path = path
         self.driver_path = 'chromedriver_win32/chromedriver.exe'
         self.options = webdriver.ChromeOptions()
@@ -44,6 +44,7 @@ class Test(object):
         self.options.binary_location = browser_path
         #self.driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
         self.writeRow = 0
+        self.row_counter = row_counter
         self.init_work_book()
 
     def init_work_book(self):
@@ -135,8 +136,9 @@ class Test(object):
                     self.sheet.cell(row=write_row, column=6, value=area)#エリア
                     self.sheet.cell(row=write_row, column=8, value=url)#URL
                     #print(self.sheet.cell(row=r+1, column=8).value)
-                print(self.sheet.max_row)
-                self.sheet_row = self.sheet.max_row
+                #print(self.sheet.max_row)
+                self.row_counter.value = self.sheet.max_row
+                print(self.row_counter)
                 #self.book.save(self.path)
                 #Issue:↑で一時保存するとinfo_scrap()との衝突するのかPermissionErrorが発生する場合がある。
                 try:
@@ -168,8 +170,8 @@ class Test(object):
         #driver.close()
 
 class SubTest(Test):
-    def __init__(self, path):
-        super(SubTest, self).__init__(path)
+    def __init__(self, path, row_counter):
+        super(SubTest, self).__init__(path, row_counter)
         self.driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
     
     def loadHtml(self, index):
@@ -376,10 +378,15 @@ class SubTest(Test):
         return data_day
 
 if __name__ == "__main__":
-    test = Test('./concurrent-test.xlsx')
-    sub_test = SubTest('./concurrent-test.xlsx')
-    executer = ProcessPoolExecutor(max_workers=None)
-    futures = executer.submit(test.url_scrap, '高知県', 'ヘアサロン')
+    #row_counter = Value('i', 0)
+    manager = Manager()
+    max_row_counter = manager.Value('i', 0)
+    test = Test('./concurrent-test.xlsx', max_row_counter)
+    sub_test = SubTest('./concurrent-test.xlsx', max_row_counter)
+    #executer = ProcessPoolExecutor(max_workers=None)
+    #futures = executer.submit(test.url_scrap, '高知県', 'ヘアサロン')
+    p = Pool()
+    future = p.apply_async(test.url_scrap, args=(['高知県', 'ヘアサロン']))
     scrap_flg = True
     search_flg = True
     scraped_row = 2
@@ -387,7 +394,8 @@ if __name__ == "__main__":
     while True:
         
         for row in range(scraped_row, readyed_row+1):
-            print("in for of " + str(row))    
+            print("in for of " + str(row))
+            print("the url:" + str(test.sheet.cell(row=row, column=8).value))    
             if (test.sheet.cell(row=row, column=8).value not in ('', None)   #URL抽出済
                 and test.sheet.cell(row=row, column=2).value == None):#info_scrap未実施                     
                 print("scrap:" + str(row))
@@ -403,10 +411,10 @@ if __name__ == "__main__":
         #print("row is renewd")
         #print(scraped_row)
         #print("ready:" + str(readyed_row))
-        print("now test max row :" + str(test.sheet.max_row))
+        #print("now test max row :" + str(test.sheet.max_row))
         scraped_row = readyed_row+1
-        readyed_row = test.sheet_row #最大読み込み行数の更新
-
-        if futures.done():
-            futures.result()
+        readyed_row = test.row_counter.value #最大読み込み行数の更新
+        #print("ready : " + str(readyed_row))
+        if future.ready():
+            future.get()
             break
