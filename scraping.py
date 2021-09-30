@@ -17,7 +17,8 @@ import re
 import requests as rq
 import sys
 import os
-class Test(object):
+
+class ScrapingURL(object):
     book = px.Workbook()
     sheet = book.worksheets[0]
     sheet_row = 1
@@ -86,6 +87,19 @@ class Test(object):
         self.sheet.freeze_panes = "A2"
 
         self.book.save(self.path)
+
+    def all_scrap(self, area_list):  # 全件抽出
+        class_menu = [
+            "ヘアサロン",
+            "ネイル・まつげサロン",
+            "リラクサロン",
+            "エステサロン",
+        ]
+        for area in area_list:
+            for junle in class_menu:
+                self.counter = 0
+                self.url_scrap(area, junle)
+            print(area + "search complete.")
 
     def url_scrap(self, area, store_junle):
         #MAX_RETRY = 3
@@ -174,9 +188,9 @@ class Test(object):
         self.sub_driver.quit()
         #driver.close()
 
-class SubTest(Test):
+class ScrapingInfomation(ScrapingURL):
     def __init__(self, path, row_counter, url_list_data):
-        super(SubTest, self).__init__(path, row_counter, url_list_data)
+        super(ScrapingInfomation, self).__init__(path, row_counter, url_list_data)
         self.driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
       
     def loadHtml(self, index, store_url_data:list):
@@ -304,6 +318,7 @@ class SubTest(Test):
                     pass
             else:
                 print("prefname is False")
+                self.sheet.delete_rows(index)
         except:
             #self.book_save()
             pass
@@ -385,44 +400,59 @@ class SubTest(Test):
         print(data_day)
         return data_day
 
-if __name__ == "__main__":
+class Implementation():
+    def __init__(self, path, area_list, junle):
+        self.area_list = area_list
+        self.junle = junle
+        self.manager = Manager()
+        self.max_row_counter = self.manager.Value('i', 0)
+        self.scrap_url_list = self.manager.list()
+        self.search = ScrapingURL(path, self.max_row_counter, self.scrap_url_list)
+        self.scrap = ScrapingInfomation(path, self.max_row_counter, self.scrap_url_list)
+
+    def run(self):
     #row_counter = Value('i', 0)
-    
-    manager = Manager()
-    max_row_counter = manager.Value('i', 0)
-    scrap_url_list = manager.list()
-    
-    test = Test('./concurrent-test.xlsx', max_row_counter, scrap_url_list)
-    sub_test = SubTest('./concurrent-test.xlsx', max_row_counter, scrap_url_list)
+    #manager = Manager()
+    #max_row_counter = manager.Value('i', 0)
+    #scrap_url_list = manager.list()
     #executer = ProcessPoolExecutor(max_workers=None)
     #futures = executer.submit(test.url_scrap, '高知県', 'ヘアサロン')
-    p = Pool()
-    future = p.apply_async(test.url_scrap, args=(['高知県', 'ヘアサロン']))
-    scrap_flg = True
-    search_flg = True
-    scraped_index = 0
-    readyed_index = 0
-    while scrap_flg:
-        
-        for index in range(scraped_index, readyed_index):
+        p = Pool()
+        if self.junle == 'すべてのジャンル':
+            future = p.apply_async(self.search.all_scrap, args=([self.area_list]))
+        else:
+        future = p.apply_async(self.search.url_scrap, args=([self.area, self.junle]))
+        scrap_flg = True
+        search_flg = True
+        scraped_index = 0
+        readyed_index = 0
+        while scrap_flg:
             
-            sub_test.loadHtml(index+2, scrap_url_list[index])
-        
-        
-        scraped_index = readyed_index+1
-        readyed_index = test.row_counter.value #最大読み込み行数の更新
-        print("scrap_index:" + str(scraped_index))
-        print("ready_index" + str(readyed_index))
-        #print("ready : " + str(readyed_row))
-        if future.ready():
-            future.get()
-            search_flg = False
+            for index in range(scraped_index, readyed_index):
+                
+                self.scrap.loadHtml(index+2, self.scrap_url_list[index])
+            
+            scraped_index = readyed_index
+            readyed_index = self.search.row_counter.value #最大読み込み行数の更新
+            print("scrap_index:" + str(scraped_index))
+            print("ready_index" + str(readyed_index))
+            #print("ready : " + str(readyed_row))
+            if future.ready():
+                future.get()
+                search_flg = False
 
-        if (search_flg == False and 
-            scrap_flg == True and 
-            readyed_index != 0 and
-            readyed_index == scraped_index-1):
-            scrap_flg = False
-            print("break!!")
-            sub_test.book.save(test.path)
-            break
+            if (search_flg == False and 
+                scrap_flg == True and 
+                readyed_index != 0 and
+                readyed_index == scraped_index):
+                scrap_flg = False
+                print("break!!")
+                self.search.book.save(self.search.path)
+                #self.search.sub_driver.quit()
+                self.scrap.driver.quit()
+                break
+    
+if __name__ == '__main__':
+    test = Implementation('concurrent-test.xlsx', '高知県', 'ヘアサロン')
+    test.run()
+
