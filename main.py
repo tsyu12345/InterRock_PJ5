@@ -1,9 +1,7 @@
 from concurrent.futures.process import ProcessPoolExecutor
-from scrap import Scraping
-import scrap
+from scraping import run
 import PySimpleGUI as sig
 import traceback
-from selenium import webdriver
 from selenium.common.exceptions import TimeoutException, WebDriverException
 import sys
 import concurrent.futures
@@ -58,9 +56,7 @@ class Job():
         self.path = path
         self.area_list = area_list
         self.junle = junle
-        self.scrap = Scraping(path)
         #self.sub_scrap = Scraping(path, use_sub_driver=False) 
-        self.scrap.init_work_book()
         self.url_scrap_flg = False
         self.info_scrap_flg = False
         self.scrap_cnt = 0 #info_scrap count
@@ -70,102 +66,12 @@ class Job():
         self.detati_flg = False
         self.exception_flg = False
 
-    def __search(self):
-        for area in self.area_list:
-            if self.junle == 'すべてのジャンル':
-                junle_list = [
-                    "ヘアサロン",
-                    "ネイル・まつげサロン",
-                    "リラクサロン",
-                    "エステサロン",
-                    ]
-                for menu in junle_list: 
-                    self.scrap.url_scrap(area, menu)
-            else:
-                self.scrap.url_scrap(area, self.junle)
+    def doJob(self):
+        """
+        scraping.py呼び出しメソッド
+        """
 
-    def run(self):
-        self.url_scrap_flg = True
-        self.detati_flg = True
-        with concurrent.futures.ProcessPoolExecutor(max_workers=None) as executer:
-            future = executer.submit(self.__search)
-        #thread = th.Thread(target=self.__search)
-        #thread.start()
-        #InfoScraping Process
-        scraped_row = 2 #初期値2行目
-        readyed_row = 1 #初期値1行目
-        self.info_scrap_flg = True
-        
-        while self.info_scrap_flg:
-            if future.done() == True and readyed_row != 1 and self.url_scrap_flg == True:
-                #url_scrapが終了したとき
-                self.scrap.sub_driver.quit()
-                self.url_scrap_flg = False
-            
-            if self.url_scrap_flg == False and scraped_row == readyed_row+1 and self.info_scrap_flg == True:
-                #全抽出処理終了判定
-                print("break!")
-                self.info_scrap_flg = False
-                break
-
-            for row in range(scraped_row, readyed_row, 2):
-               
-                if (self.scrap.sheet.cell(row=row, column=8).value not in ('', None)   #URL抽出済
-                    and self.scrap.sheet.cell(row=row, column=2).value == None):#info_scrap未実施                     
-                    print("scrap:" + str(row))
-                    if self.scrap_cnt % 100 == 0:
-                        self.scrap.restart(row)
-                    self.scrap.loadHtml(row)
-                    self.scrap_cnt += 1
-                elif self.scrap.sheet.cell(row=row, column=8).value == '' : 
-                    #（予防策）info_scrapで対象都道府県でないときに生成される空行（空文字）に当たった場合。
-                    pass
-                elif self.scrap.sheet.cell(row=row, column=8).value == None:#まだ未検索
-                    self.scrap.book.save(self.path)
-                    scraped_row = row
-                    break #更新のためbreak
-            
-
-            
-            scraped_row = readyed_row+1
-            readyed_row = self.scrap.sheet_row #最大読み込み行数の更新
-            print("row is renewd")
-       
-        #save data file
-        self.detati_flg = False
-        #self.scrap.main_driver.quit()
-        self.scrap.driver.quit()
-        self.scrap.book.save(self.scrap.path)
-        # finishing scrap
-        self.check_flg = True
-        while scrap.check(self.path) == False:
-            scrap.apper_adjst(self.path)
-        print("OK")
-        self.check_flg = False
-        self.end_flg = True
-
-    """
-        for r in range(2, self.scrap.sheet.max_row+1):
-            try:
-                if self.scrap_cnt % 100 == 0:
-                    self.scrap.restart(r)
-                self.scrap.info_scrap(r)
-            except TimeoutException:
-                self.exception_flg = True
-                self.scrap.driver.quit()
-                self.scrap.book.save(self.path)
-                time.sleep(120)
-                self.exception_flg = False
-                self.scrap.driver = webdriver.Chrome(executable_path=self.scrap.driver_path, options=self.scrap.options)
-                self.scrap.info_scrap(r)
-            else:
-                self.scrap_cnt += 1
-        self.detati_flg = False
-        #sig.popup_no_buttons('保存中...。', non_blocking=True, auto_close=True)
-        self.scrap.driver.quit()
-        self.scrap.book.save(self.scrap.path)
-        self.info_scrap_flg = False
-    """
+    
 
     def retry(self):
         """
