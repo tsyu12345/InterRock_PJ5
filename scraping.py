@@ -421,7 +421,11 @@ class Implementation():
         if self.junle == 'すべてのジャンル':
             future = p.apply_async(self.search.all_scrap, args=([self.area_list]))
         else:
-        future = p.apply_async(self.search.url_scrap, args=([self.area, self.junle]))
+            for area in self.area_list:
+                future = p.apply_async(self.search.url_scrap, args=([area, self.junle]))
+                p.join()
+                #Issue:県数分apple_asyncを用意しなければならず、chromeによるメモリ消費が法外になってしまう。
+
         scrap_flg = True
         search_flg = True
         scraped_index = 0
