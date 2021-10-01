@@ -1,12 +1,11 @@
+from calendar import THURSDAY
 from concurrent.futures.process import ProcessPoolExecutor
-from scraping import run
+from scraping import Implementation
 import PySimpleGUI as sig
 import traceback
 from selenium.common.exceptions import TimeoutException, WebDriverException
 import sys
-import concurrent.futures
 import threading as th
-#from multiprocessing import Pool
 import time
 
 class SelectArea:
@@ -56,7 +55,7 @@ class Job():
         self.path = path
         self.area_list = area_list
         self.junle = junle
-        #self.sub_scrap = Scraping(path, use_sub_driver=False) 
+        self.scrap = Implementation(self.path, self.area_list, self.junle)
         self.url_scrap_flg = False
         self.info_scrap_flg = False
         self.scrap_cnt = 0 #info_scrap count
@@ -69,7 +68,11 @@ class Job():
     def doJob(self):
         """
         scraping.py呼び出しメソッド
-        """
+        """    
+        self.info_scrap_flg = True
+        self.scrap.run()
+        self.info_scrap_flg = False
+        self.end_flg = True
 
     
 
@@ -189,15 +192,13 @@ def main():
             if check:
                 area_list = value['pref_name'].split(",")
                 job = Job(value['path'], area_list, value['store_class'])
-                #job_thread = th.Thread(target=job.run, daemon=True)
-                #job_thread.start()
-                with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executer:
-                    executer.submit(job.run,)
+                job_thread = th.Thread(target=job.doJob, daemon=True)
+                job_thread.start()
                 running = True
                 while running:
                     if job.info_scrap_flg:
                         try:   
-                            cancel = sig.one_line_progress_meter("処理中です...", job.scrap_cnt, job.scrap.sheet_row, 'prog', "店舗情報を抽出しています。\nこれには数時間かかることがあります。", orientation='h',)
+                            cancel = sig.one_line_progress_meter("処理中です...", job.scrap.end_count, job.scrap.search_sum, 'prog', "店舗情報を抽出しています。\nこれには数時間かかることがあります。", orientation='h',)
                         except (TypeError, RuntimeError):
                             cancel = sig.OneLineProgressMeter(
                                 "処9理中です...", 0, 1, 'prog', "現在準備中です。")
