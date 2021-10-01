@@ -98,10 +98,14 @@ class ScrapingURL(object):
         for area in area_list:
             for junle in class_menu:
                 self.counter = 0
-                self.url_scrap(area, junle)
+                self.__url_scrap(area, junle)
             print(area + "search complete.")
 
-    def url_scrap(self, area, store_junle):
+    def search(self, area_list, store_junle):
+        for area in area_list:
+            self.__url_scrap(area, store_junle)
+
+    def __url_scrap(self, area, store_junle):
         #MAX_RETRY = 3
         self.sub_driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
         print("starting ChromeDriver.exe....")
@@ -409,7 +413,8 @@ class Implementation():
         self.scrap_url_list = self.manager.list()
         self.search = ScrapingURL(path, self.max_row_counter, self.scrap_url_list)
         self.scrap = ScrapingInfomation(path, self.max_row_counter, self.scrap_url_list)
-
+        self.end_count = 0
+        self.search_sum = 1
     def run(self):
     #row_counter = Value('i', 0)
     #manager = Manager()
@@ -421,9 +426,7 @@ class Implementation():
         if self.junle == 'すべてのジャンル':
             future = p.apply_async(self.search.all_scrap, args=([self.area_list]))
         else:
-            for area in self.area_list:
-                future = p.apply_async(self.search.url_scrap, args=([area, self.junle]))
-                p.join()
+            future = p.apply_async(self.search.search, args=([self.area_list, self.junle]))
                 #Issue:県数分apple_asyncを用意しなければならず、chromeによるメモリ消費が法外になってしまう。
 
         scrap_flg = True
@@ -431,15 +434,15 @@ class Implementation():
         scraped_index = 0
         readyed_index = 0
         while scrap_flg:
-            
             for index in range(scraped_index, readyed_index):
-                
                 self.scrap.loadHtml(index+2, self.scrap_url_list[index])
+                self.end_count += 1
+                self.search_sum = len(self.scrap_url_list)
             
             scraped_index = readyed_index
             readyed_index = self.search.row_counter.value #最大読み込み行数の更新
-            print("scrap_index:" + str(scraped_index))
-            print("ready_index" + str(readyed_index))
+            #print("scrap_index:" + str(scraped_index))
+            #print("ready_index" + str(readyed_index))
             #print("ready : " + str(readyed_row))
             if future.ready():
                 future.get()
@@ -457,6 +460,6 @@ class Implementation():
                 break
     
 if __name__ == '__main__':
-    test = Implementation('concurrent-test.xlsx', '高知県', 'ヘアサロン')
+    test = Implementation('concurrent-test.xlsx', ['高知県','徳島県'], 'ヘアサロン')
     test.run()
 
