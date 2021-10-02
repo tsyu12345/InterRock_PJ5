@@ -1,6 +1,6 @@
 from calendar import THURSDAY
 from concurrent.futures.process import ProcessPoolExecutor
-from scraping import Implementation
+from scraping import Implementation, check, apper_adjst
 import PySimpleGUI as sig
 import traceback
 from selenium.common.exceptions import TimeoutException, WebDriverException
@@ -72,22 +72,36 @@ class Job():
         self.info_scrap_flg = True
         self.scrap.run()
         self.info_scrap_flg = False
+
+        # finishing scrap
+        self.check_flg = True
+        while check(self.path) == False:
+            apper_adjst(self.path)
+        print("OK")
+        self.check_flg = False
         self.end_flg = True
 
-    
+
 
     def retry(self):
         """
         Scrapingが失敗したとき（自動再起動でも）手動で再スクレイピングする。
         branch:dev_retry_scraping
         """
+
     def cancel(self):
         try:
-            self.scrap.book.save(self.path)
-            self.scrap.driver.quit()
-            self.scrap.sub_driver.quit()
+           self.scrap.search.book.save(self.path)
+           self.scrap.search.sub_driver.quit()
+           self.scrap.scrap.driver.quit()
         except:
             pass
+        self.check_flg = True
+        while check(self.path) == False:
+            apper_adjst(self.path)
+        print("OK")
+        self.check_flg = False
+        self.end_flg = True
 
 
 def menu_list():
@@ -197,16 +211,24 @@ def main():
                 running = True
                 while running:
                     if job.info_scrap_flg:
+                        #0除算対策
+                        sum = job.scrap.search_sum
+                        if job.scrap.search_sum == 0:
+                            sum = 1
                         try:   
-                            cancel = sig.one_line_progress_meter("処理中です...", job.scrap.end_count, job.scrap.search_sum, 'prog', "店舗情報を抽出しています。\nこれには数時間かかることがあります。", orientation='h',)
+                            cancel = sig.one_line_progress_meter("処理中です...", job.scrap.end_count, sum, 'prog', "店舗情報を抽出しています。\nこれには数時間かかることがあります。", orientation='h',)
                         except (TypeError, RuntimeError):
                             cancel = sig.OneLineProgressMeter(
                                 "処9理中です...", 0, 1, 'prog', "現在準備中です。")
                             pass
 
-                        if cancel == False and job.detati_flg == True and job.end_flg == False:
+                        if cancel == False and job.end_flg == False:
                             print("detati in ")
                             detati = True
+                            thread = th.Thread(target=job.cancel)
+                            thread.start()
+                            while thread.is_alive() != True:
+                                sig.popup_animated('animationGifs/images/icon_loader_f_ww_01_s1.gif',message="抽出データの確認を行っています。\nあと少しで完了します。")
                             running = False
                             break
 
@@ -227,8 +249,6 @@ def main():
         
         if detati:
             try:
-                job.cancel()
-                #executer.shutdown(wait=False)
                 sig.popup("処理を中断しました。途中保存ファイル先は下記です。\n" + value['path'])
                 break
             except TypeError:
@@ -237,7 +257,6 @@ def main():
         if event in ("Quit", None):
             break
     win.close()
-    #executer.shutdown(wait=False)
     sys.exit()
 
 if __name__ == "__main__":
