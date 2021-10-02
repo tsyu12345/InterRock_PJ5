@@ -327,7 +327,7 @@ class ScrapingInfomation(ScrapingURL):
             #self.book_save()
             pass
 
-    def restart(self, index):
+    def restart(self):
         """
         info_scrapに使用するブラウザの再起動
         """
@@ -336,8 +336,6 @@ class ScrapingInfomation(ScrapingURL):
         self.driver.quit()
         time.sleep(5)
         self.driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
-        url = self.sheet.cell(row=index, column=8).value
-        self.driver.get(url)
 
     def call_jis_code(self, key):
         pref_jiscode = {
@@ -427,14 +425,16 @@ class Implementation():
             future = p.apply_async(self.search.all_scrap, args=([self.area_list]))
         else:
             future = p.apply_async(self.search.search, args=([self.area_list, self.junle]))
-                #Issue:県数分apple_asyncを用意しなければならず、chromeによるメモリ消費が法外になってしまう。
 
         scrap_flg = True
         search_flg = True
         scraped_index = 0
         readyed_index = 0
         while scrap_flg:
+            self.search_sum = len(self.scrap_url_list)
             for index in range(scraped_index, readyed_index):
+                if self.end_count % 100 == 0:
+                    self.scrap.restart()
                 self.scrap.loadHtml(index+2, self.scrap_url_list[index])
                 self.end_count += 1
                 self.search_sum = len(self.scrap_url_list)
@@ -458,6 +458,38 @@ class Implementation():
                 #self.search.sub_driver.quit()
                 self.scrap.driver.quit()
                 break
+            
+def resource_path(relative_path):#バイナリフィルのパスを提供
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.dirname(__file__)
+    return os.path.join(base_path, relative_path)
+
+def apper_adjst(path):#空白行を削除する
+    book = px.load_workbook(path)
+    sheet = book.worksheets[0]
+    for r in range(2, sheet.max_row+1):
+        print("check" + str(r))
+        #sig.OneLineProgressMeter('内容チェック中...', r-1, sheet.max_row-1, args="データの内容をチェック中...です。")
+        if sheet.cell(row=r, column=1).value == "" or sheet.cell(row=r, column=1).value == None:
+            sheet.delete_rows(r)
+    book.save(path)
+
+def check(path):
+    book = px.load_workbook(path)
+    sheet = book.worksheets[0]
+    for r in range(2, sheet.max_row+1):
+        print("check" + str(r))
+        #sig.OneLineProgressMeter('内容チェック中...', r-1, sheet.max_row-1)
+        if sheet.cell(row=r, column=2).value in ("", " ", None):
+            fill =  PatternFill(patternType='solid', fgColor='ffff00')
+            sheet['B'+str(r)].fill = fill
+            sheet.cell(row=r, column=2, value='抽出不可')
+        if sheet.cell(row=r, column=1).value == "" or sheet.cell(row=r, column=1).value == None:
+            return False
+    book.save(path)
+    return True
     
 if __name__ == '__main__':
     test = Implementation('concurrent-test.xlsx', ['高知県','徳島県'], 'ヘアサロン')
