@@ -216,12 +216,14 @@ class ScrapingInfomation(ScrapingURL):
             pass
         wait.until(EC.visibility_of_all_elements_located)
         html = self.driver.page_source
-        self.__extraction(html, index, store_url_data)
+        data_list:list = self.__extraction(html, index, store_url_data)
+        return data_list #[A,B,C....]
         
     def __extraction(self, html, index, store_url_data):
         """
-        HTMLを受け取り、情報を抽出・保存する。
+        HTMLを受け取り、情報を抽出,結果のリストを返す。
         """
+        data_list = [] #返却用リスト
         soup = bs(html, 'lxml')
         table_value = soup.select(
             'div.mT30 > table > tbody > tr > td')
@@ -239,9 +241,14 @@ class ScrapingInfomation(ScrapingURL):
                     '東京都|北海道|(?:京都|大阪)府|.{2,3}県', all_address)  # 県名とそれ以降を分離
                 prefecture = prefecture_search.group()  # 県名
                 if prefecture != store_url_data[1]:
+                    data_list[0] = ''
+                    data_list[6] = ''
+                    data_list[8] = ''
+                    """
                     self.sheet.cell(row=index, column=8, value='')
                     self.sheet.cell(row=index, column=6, value='')
                     self.sheet.cell(row=index, column=1, value='')
+                    """
                     pref_tf = False
                 jis_code = self.call_jis_code(prefecture)
                 municipality = address_low[1]  # それ以降
@@ -291,7 +298,18 @@ class ScrapingInfomation(ScrapingURL):
                 slide_img_tag = soup.select(
                     'div.slnTopImgCarouselWrap.jscThumbWrap > ul > li')
                 slide_cnt = len(slide_img_tag)
-
+                
+                data_list[0] = store_url_data[0]
+                data_list[1] = store_name
+                data_list[2] = st_name_kana
+                data_list[3] = tel_num
+                data_list[4] = jis_code
+                data_list[5] = prefecture
+                data_list[6] = municipality
+                data_list[7] = store_url_data[2]
+                
+                
+"""
                 # write Excel
                 try:
                     self.sheet.cell(row=index, column=1, value=store_url_data[0])#ジャンル
@@ -301,8 +319,8 @@ class ScrapingInfomation(ScrapingURL):
                     self.sheet.cell(row=index, column=5, value=jis_code)
                     self.sheet.cell(row=index, column=6, value=prefecture)
                     #self.sheet.cell(row=write_row, column=6, value=area)#エリア
-                    self.sheet.cell(row=index, column=8, value=store_url_data[2])#URL
                     self.sheet.cell(row=index, column=7, value=municipality)
+                    self.sheet.cell(row=index, column=8, value=store_url_data[2])#URL
                     self.sheet.cell(row=index, column=9, value=self.scrap_day())
                     self.sheet.cell(row=index, column=13, value=pankuzu)
                     self.sheet.cell(row=index, column=16, value=slide_cnt)
@@ -326,6 +344,7 @@ class ScrapingInfomation(ScrapingURL):
         except:
             #self.book_save()
             pass
+"""
 
     def restart(self):
         """
@@ -402,13 +421,70 @@ class ScrapingInfomation(ScrapingURL):
         print(data_day)
         return data_day
 
+class WriteWorkBook():
+    book = px.Workbook()
+    sheet = book.worksheets[0]
+    def __init__(self, path):
+        self.path = path
+    
+    def init_work_book(self):
+        menu = [
+            "ジャンル",
+            "店舗名",
+            "店舗名カナ",
+            "電話番号",
+            "都道府県コード",
+            "都道府県",
+            "市区町村・番地",
+            "店舗URL",
+            "詳細データ取得日",
+            "料金プラン着地",
+            "月額料金",
+            "お店のホームページ",
+            "パンくず",
+            "ヘッダー画像有無",
+            "こだわり有無",
+            "スライド画像数",
+            "キャッチコピー",
+            "アクセス・道案内",
+            "営業時間",
+            "定休日",
+            "支払い方法",
+            "設備",
+            "カット価格",
+            "席数",
+            "スタッフ数",
+            "駐車場",
+            "こだわり条件",
+            "備考",
+            "スタッフ募集",
+            "最終更新日"
+        ]
+        for c in range(1, 30+1):
+            self.sheet.cell(row=1, column=c, value=menu[c-1])
+        self.sheet.freeze_panes = "A2"
+
+        self.book.save(self.path)
+    
+    def wirte_data(self, index,data_list:list):
+        """
+        1プロセスあたりのスクレイピングデータを書き込む。
+        data_list = [junle, store_name, st_name_kana, tel_num, jis_code, prefecture, municipacy, url, day, pankuzu, slide, catchCopy, headerImg]
+        """
+        for col in range(1, 30+1):
+            self.sheet.cell(row=index, column=col, value=data_list[col-1])
+        
+
+
+
 class Implementation():
     def __init__(self, path, area_list, junle):
         self.area_list = area_list
         self.junle = junle
-        self.manager = Manager()
-        self.max_row_counter = self.manager.Value('i', 0)
-        self.scrap_url_list = self.manager.list()
+        self.manager = Manager() #共有メモリ
+        self.max_row_counter = self.manager.Value('i', 0) #最大読み込み行数格納用
+        self.scrap_url_list = self.manager.list() #URL格納用リスト
+        self.data_save_list = self.manager.list() #情報格納用リスト
         self.search = ScrapingURL(path, self.max_row_counter, self.scrap_url_list)
         self.scrap = ScrapingInfomation(path, self.max_row_counter, self.scrap_url_list)
         self.end_count = 0
