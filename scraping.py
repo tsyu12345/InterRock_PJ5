@@ -47,6 +47,9 @@ class ScrapingURL(object):
         self.writeRow = 0
         self.row_counter = row_counter
         self.url_list = sync_data_list
+        self.table_list = [
+
+        ]
         self.init_work_book()
 
     def init_work_book(self):
@@ -298,19 +301,37 @@ class ScrapingInfomation(ScrapingURL):
                 slide_img_tag = soup.select(
                     'div.slnTopImgCarouselWrap.jscThumbWrap > ul > li')
                 slide_cnt = len(slide_img_tag)
-                
-                data_list[0] = store_url_data[0]
-                data_list[1] = store_name
-                data_list[2] = st_name_kana
-                data_list[3] = tel_num
-                data_list[4] = jis_code
-                data_list[5] = prefecture
-                data_list[6] = municipality
-                data_list[7] = store_url_data[2]
-                
+            #append data_list
+                data_list.append(store_url_data[0])
+                data_list.append(store_name)
+                data_list.append(st_name_kana)
+                data_list.append(tel_num)
+                data_list.append(jis_code)
+                data_list.append(prefecture)
+                data_list.append(municipality)
+                data_list.append(store_url_data[2])
+                data_list.append(self.__scrap_day()) 
+                data_list.append(pankuzu)
+                data_list.append(slide_cnt)
+                data_list.append(catch_copy)
+                data_list.append(head_img_yn)
+
+                for j in range(2, len(table_value)):
+                    for c in range(1, 30+1):
+                        if table_menu[j].get_text() == :
+                            self.sheet.cell(
+                                row=index, column=c, value=table_value[j].get_text())
+                            break
+            else:
+                print("prefname is False")
+                return data_list
+        except:
+            #self.book_save()
+            pass
+        return data_list
+
                 
 """
-                # write Excel
                 try:
                     self.sheet.cell(row=index, column=1, value=store_url_data[0])#ジャンル
                     self.sheet.cell(row=index, column=2, value=store_name)
@@ -410,7 +431,7 @@ class ScrapingInfomation(ScrapingURL):
         print(code)
         return code
 
-    def scrap_day(self):
+    def __scrap_day(self):
         dt_now = datetime.datetime.now()
         year = str(dt_now.year)
         month = str(dt_now.month)
@@ -420,6 +441,7 @@ class ScrapingInfomation(ScrapingURL):
         data_day = year + "," + month + day + "," + hour + min
         print(data_day)
         return data_day
+
 
 class WriteWorkBook():
     book = px.Workbook()

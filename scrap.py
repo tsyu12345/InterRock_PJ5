@@ -9,7 +9,7 @@ import openpyxl as px
 from openpyxl.styles import PatternFill
 from bs4 import BeautifulSoup as bs
 #from multiprocessing import Pool 
-from concurrent.futures import ProcessPoolExecutor as Executer
+from concurrent.futures import ProcessPoolExecutor
 import threading as th
 import time
 import datetime
@@ -110,7 +110,7 @@ class Scraping():
 
     def url_scrap(self, area, store_junle):
         #MAX_RETRY = 3
-        #driver = webdriver.Chrome(executable_path=driver_path, options=self.options)
+        self.sub_driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
         print("starting ChromeDriver.exe....")
         wait = WebDriverWait(self.sub_driver, 180)#Max wait time(second):180s
         self.sub_driver.get("https://beauty.hotpepper.jp/top/")  # top page
@@ -426,66 +426,12 @@ def check(path):
     book.save(path)
     return True
 
-
-
-
 if __name__ == "__main__":
-    class Test():
-
-        def __init__(self):
-            self.job = Scraping('./kouti_test.xlsx')
-            self.job.init_work_book()
-            self.url_flg = False
-            self.info_flg = False
-            #cnt:int = 0
-
-        def main(self):
-            #th1 = th.Thread(target=self.job.url_scrap, args=('高知県', 'ヘアサロン')) 
-            #th1.start()
-            #search_process.get()
-            print("main process!")
-            executer = Executer(max_workers=None)
-            future = executer.submit(self.job.url_scrap, '高知県', 'ヘアサロン')
-            future.result()
-            #ft =executer.as_completed(future)
-            print("submitted")
-            self.url_flg = True
-            # info scraiping
-            #p.join()s
-            completed_row = 2 #初期値2行目
-            ready_row = 1 #初期値1行目
-            self.info_flg = True
-            while self.info_flg:
-                
-                if ready_row != 1 and future.done() and self.url_flg == True: 
-                    #url_scrap終了時
-                    print("url search end")
-                    self.url_flg = False
-                
-                #print("compleate row / loaded row : " + str(complete_row) + "/" + str(ready_row))
-                for row in range(completed_row, ready_row+1):
-                    if (self.job.sheet.cell(row=row, column=8).value != None #URL抽出済
-                        and self.job.sheet.cell(row=row, column=2).value == None):#info_scrap未実施                     
-                        print("scrap:" + str(row))
-                        self.job.info_scrap(row)
-                    else:#URL未抽出行に到達
-                        completed_row = row+1
-                        break #更新のためbreak
-                
-                ready_row = self.job.sheet_row
-                
-                if self.url_flg == False and completed_row == ready_row:
-                    #全終了判定
-                    self.info_flg = False
-                    print("break")
-                    break
-                
-                
-        
-            self.job.driver.quit()
-            self.job.book.save(self.job.path)
-    
-    test = Test()
-    test.main()
-    #test.main()
+    test = Scraping('concurrent-test.xlsx')
+    executer = ProcessPoolExecutor(max_workers=None)
+    futures = executer.submit(test.url_scrap, '高知県', 'ヘアサロン')
+    if futures.done():
+        futures.result()
+        print("ProcessPool end")
+        test.sub_driver.quit()
 
