@@ -199,6 +199,21 @@ class ScrapingInfomation(ScrapingURL):
     def __init__(self, path, row_counter, url_list_data):
         super(ScrapingInfomation, self).__init__(path, row_counter, url_list_data)
         self.driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
+        self.table_menu = {
+            12:'お店のホームページ',
+            18:'アクセス・道案内',
+            19:'営業時間',
+            20:'定休日',
+            21:'支払い方法',
+            22:'設備',
+            23:'カット価格',
+            24:'席数',
+            25:'スタッフ数',
+            26:'駐車場',
+            27:'こだわり条件',
+            28:'備考',
+            29:'スタッフ募集',
+        }
       
     def loadHtml(self, index, store_url_data:list):
         #conunter = 0
@@ -221,12 +236,22 @@ class ScrapingInfomation(ScrapingURL):
         html = self.driver.page_source
         data_list:list = self.__extraction(html, index, store_url_data)
         return data_list #[A,B,C....]
-        
-    def __extraction(self, html, index, store_url_data):
+
+    def __create_data_list(self, data_length):
+        """
+        指定数分のNone要素のみのリストを作成。\n
+        data = [None, None, None ......(len() = data_length)]
+        """
+        data_list = []
+        for i in range(data_length):
+            data_list.append(None)
+        return data_list
+
+    def __extraction(self, html, store_url_data):
         """
         HTMLを受け取り、情報を抽出,結果のリストを返す。
         """
-        data_list = [] #返却用リスト
+        data_list = self.__create_data_list(31)
         soup = bs(html, 'lxml')
         table_value = soup.select(
             'div.mT30 > table > tbody > tr > td')
@@ -301,26 +326,26 @@ class ScrapingInfomation(ScrapingURL):
                 slide_img_tag = soup.select(
                     'div.slnTopImgCarouselWrap.jscThumbWrap > ul > li')
                 slide_cnt = len(slide_img_tag)
+            
             #append data_list
-                data_list.append(store_url_data[0])
-                data_list.append(store_name)
-                data_list.append(st_name_kana)
-                data_list.append(tel_num)
-                data_list.append(jis_code)
-                data_list.append(prefecture)
-                data_list.append(municipality)
-                data_list.append(store_url_data[2])
-                data_list.append(self.__scrap_day()) 
-                data_list.append(pankuzu)
-                data_list.append(slide_cnt)
-                data_list.append(catch_copy)
-                data_list.append(head_img_yn)
+                data_list[0] = store_url_data[0]
+                data_list[1] = store_name
+                data_list[2] = st_name_kana
+                data_list[3] = tel_num
+                data_list[4] = jis_code
+                data_list[5] = prefecture
+                data_list[6] = municipality
+                data_list[7] = store_url_data[2]
+                data_list[8] = self.__scrap_day()
+                data_list[12] = pankuzu
+                data_list[15] = slide_cnt
+                data_list[16] = catch_copy
+                data_list[13] = head_img_yn 
 
                 for j in range(2, len(table_value)):
-                    for c in range(1, 30+1):
-                        if table_menu[j].get_text() == :
-                            self.sheet.cell(
-                                row=index, column=c, value=table_value[j].get_text())
+                    for row, menu in zip(self.table_menu.keys(), self.table_menu.values()):  
+                        if table_menu[j].get_text() == menu:
+                            data_list[row-1] = table_value[j].get_text()
                             break
             else:
                 print("prefname is False")
@@ -329,43 +354,6 @@ class ScrapingInfomation(ScrapingURL):
             #self.book_save()
             pass
         return data_list
-
-                
-"""
-                try:
-                    self.sheet.cell(row=index, column=1, value=store_url_data[0])#ジャンル
-                    self.sheet.cell(row=index, column=2, value=store_name)
-                    self.sheet.cell(row=index, column=3, value=st_name_kana)
-                    self.sheet.cell(row=index, column=4, value=tel_num)
-                    self.sheet.cell(row=index, column=5, value=jis_code)
-                    self.sheet.cell(row=index, column=6, value=prefecture)
-                    #self.sheet.cell(row=write_row, column=6, value=area)#エリア
-                    self.sheet.cell(row=index, column=7, value=municipality)
-                    self.sheet.cell(row=index, column=8, value=store_url_data[2])#URL
-                    self.sheet.cell(row=index, column=9, value=self.scrap_day())
-                    self.sheet.cell(row=index, column=13, value=pankuzu)
-                    self.sheet.cell(row=index, column=16, value=slide_cnt)
-                    self.sheet.cell(row=index, column=17, value=catch_copy)
-                    self.sheet.cell(row=index, column=14, value=head_img_yn)
-                except:
-                    pass
-                # 他の情報処理
-                try:
-                    for j in range(2, len(table_value)):
-                        for c in range(1, self.sheet.max_column):
-                            if table_menu[j].get_text() == self.sheet.cell(row=1, column=c).value:
-                                self.sheet.cell(
-                                    row=index, column=c, value=table_value[j].get_text())
-                                break
-                except RuntimeError:
-                    pass
-            else:
-                print("prefname is False")
-                self.sheet.delete_rows(index)
-        except:
-            #self.book_save()
-            pass
-"""
 
     def restart(self):
         """
@@ -485,13 +473,12 @@ class WriteWorkBook():
         for c in range(1, 30+1):
             self.sheet.cell(row=1, column=c, value=menu[c-1])
         self.sheet.freeze_panes = "A2"
-
         self.book.save(self.path)
     
     def wirte_data(self, index,data_list:list):
         """
-        1プロセスあたりのスクレイピングデータを書き込む。
-        data_list = [junle, store_name, st_name_kana, tel_num, jis_code, prefecture, municipacy, url, day, pankuzu, slide, catchCopy, headerImg]
+        1プロセスあたりのスクレイピングデータを書き込む。\n
+        data_list = [junle, store_name, st_name_kana, ....]
         """
         for col in range(1, 30+1):
             self.sheet.cell(row=index, column=col, value=data_list[col-1])
@@ -506,7 +493,7 @@ class Implementation():
         self.manager = Manager() #共有メモリ
         self.max_row_counter = self.manager.Value('i', 0) #最大読み込み行数格納用
         self.scrap_url_list = self.manager.list() #URL格納用リスト
-        self.data_save_list = self.manager.list() #情報格納用リスト
+        self.queue = self.manager.Queue() #結果格納用キュー
         self.search = ScrapingURL(path, self.max_row_counter, self.scrap_url_list)
         self.scrap = ScrapingInfomation(path, self.max_row_counter, self.scrap_url_list)
         self.end_count = 0
