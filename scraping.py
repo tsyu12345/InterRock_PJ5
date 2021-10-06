@@ -215,7 +215,7 @@ class ScrapingInfomation(ScrapingURL):
             29:'スタッフ募集',
         }
       
-    def loadHtml(self, index, store_url_data:list):
+    def loadHtml(self, store_url_data:list):
         #conunter = 0
         wait = WebDriverWait(self.driver, 180)
         try:
@@ -234,7 +234,7 @@ class ScrapingInfomation(ScrapingURL):
             pass
         wait.until(EC.visibility_of_all_elements_located)
         html = self.driver.page_source
-        data_list:list = self.__extraction(html, index, store_url_data)
+        data_list:list = self.__extraction(html, store_url_data)
         return data_list #[A,B,C....]
 
     def __create_data_list(self, data_length):
@@ -496,6 +496,7 @@ class Implementation():
         self.queue = self.manager.Queue() #結果格納用キュー
         self.search = ScrapingURL(path, self.max_row_counter, self.scrap_url_list)
         self.scrap = ScrapingInfomation(path, self.max_row_counter, self.scrap_url_list)
+        self.scrap2 = ScrapingInfomation(path, self.max_row_counter, self.scrap_url_list)
         self.end_count = 0
         self.search_sum = 1
     def run(self):
@@ -517,10 +518,12 @@ class Implementation():
         readyed_index = 0
         while scrap_flg:
             self.search_sum = len(self.scrap_url_list)
-            for index in range(scraped_index, readyed_index):
+            for index in range(scraped_index, readyed_index, 2):
                 if self.end_count % 100 == 0:
                     self.scrap.restart()
-                self.scrap.loadHtml(index+2, self.scrap_url_list[index])
+                id1 = p.apply_async(self.scrap2.loadHtml, args = ([self.scrap_url_list[index]]))
+                id2 = p.apply_async(self.scrap.loadHtml, args=([self.scrap_url_list[index+1]]))
+
                 self.end_count += 1
                 self.search_sum = len(self.scrap_url_list)
             
