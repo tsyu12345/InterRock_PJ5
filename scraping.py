@@ -1,3 +1,6 @@
+from multiprocessing.pool import ApplyResult
+import queue
+from typing import Tuple
 from selenium import webdriver
 from selenium.common.exceptions import InvalidArgumentException, InvalidSessionIdException, InvalidSwitchToTargetException, NoSuchElementException, TimeoutException, WebDriverException
 from selenium.webdriver.chrome.webdriver import WebDriver
@@ -196,9 +199,17 @@ class ScrapingURL(object):
         #driver.close()
 
 class ScrapingInfomation(ScrapingURL):
-    def __init__(self, path, row_counter, url_list_data):
+    def __init__(self, path, row_counter, url_list_data, get_new_driver):
+        """
+        path : WorkSheetPath \n
+        row_counter : Manager.Value('i', 0) \n
+        url_list_data : Manager.list() \n
+        get_new_driver : Manager.Value('b') ※共有メモリ上のboolean変数 \n
+
+        """
         super(ScrapingInfomation, self).__init__(path, row_counter, url_list_data)
-        self.driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
+        #self.driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
+        self.get_new_driver = get_new_driver
         self.table_menu = {
             12:'お店のホームページ',
             18:'アクセス・道案内',
@@ -215,8 +226,9 @@ class ScrapingInfomation(ScrapingURL):
             29:'スタッフ募集',
         }
       
-    def loadHtml(self, store_url_data:list):
-        #conunter = 0
+    def loadHtml(self, store_url_data:list,):
+        #conunter = 
+        self.driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
         wait = WebDriverWait(self.driver, 180)
         try:
             url = store_url_data[2] #[junle, area, url]の想定
@@ -226,7 +238,6 @@ class ScrapingInfomation(ScrapingURL):
             self.driver.delete_all_cookies()
             self.driver.quit()
             time.sleep(30)#強制30秒待機
-            self.driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
             wait = WebDriverWait(self.driver, 180)
             self.driver.get(url)
             #issues: urlに''が渡されるとInvaild argument Exceptionが発生し処理が止まる。
@@ -235,6 +246,7 @@ class ScrapingInfomation(ScrapingURL):
         wait.until(EC.visibility_of_all_elements_located)
         html = self.driver.page_source
         data_list:list = self.__extraction(html, store_url_data)
+        self.driver.quit()
         return data_list #[A,B,C....]
 
     def __create_data_list(self, data_length):
@@ -494,11 +506,15 @@ class Implementation():
         self.max_row_counter = self.manager.Value('i', 0) #最大読み込み行数格納用
         self.scrap_url_list = self.manager.list() #URL格納用リスト
         self.queue = self.manager.Queue() #結果格納用キュー
+        self.get_new_driver = self.manager.Value('b', True)
         self.search = ScrapingURL(path, self.max_row_counter, self.scrap_url_list)
-        self.scrap = ScrapingInfomation(path, self.max_row_counter, self.scrap_url_list)
-        self.scrap2 = ScrapingInfomation(path, self.max_row_counter, self.scrap_url_list)
+        self.scrap = ScrapingInfomation(path, self.max_row_counter, self.scrap_url_list, self.get_new_driver)
+        self.scrap2 = ScrapingInfomation(path, self.max_row_counter, self.scrap_url_list, self.get_new_driver)
+        self.writeBook = WriteWorkBook(path)
         self.end_count = 0
         self.search_sum = 1
+        self.write_index = 2 #ワークシート書き込みの初期行数：2
+        
     def run(self):
     #row_counter = Value('i', 0)
     #manager = Manager()
@@ -516,15 +532,31 @@ class Implementation():
         search_flg = True
         scraped_index = 0
         readyed_index = 0
+
         while scrap_flg:
             self.search_sum = len(self.scrap_url_list)
             for index in range(scraped_index, readyed_index, 2):
-                if self.end_count % 100 == 0:
+                if self.end_count % 100 == 0 and self.end_count != 0:
                     self.scrap.restart()
-                id1 = p.apply_async(self.scrap2.loadHtml, args = ([self.scrap_url_list[index]]))
-                id2 = p.apply_async(self.scrap.loadHtml, args=([self.scrap_url_list[index+1]]))
-
-                self.end_count += 1
+                    self.scrap2.restart()
+                result1 = p.apply_async(self.scrap2.loadHtml, args=([self.scrap_url_list[index]]))
+                result2 = p.apply_async(self.scrap.loadHtml, args=([self.scrap_url_list[index+1]]))
+                doing = True
+                async_result = [False, False]
+                while doing:
+                    if False not in async_result:
+                        doing = False
+                        break
+                    if result1.ready():
+                        async_result[0] = True
+                        #print(result1.get())
+                        self.queue.put(result1.get())
+                    if result2.ready():
+                        async_result[1] = True
+                        #print(result2.get())
+                        self.queue.put(result2.get())
+                p.apply_async(self.queue_writing)
+                self.end_count += 2
                 self.search_sum = len(self.scrap_url_list)
             
             scraped_index = readyed_index
@@ -546,7 +578,20 @@ class Implementation():
                 #self.search.sub_driver.quit()
                 self.scrap.driver.quit()
                 break
-            
+        
+    def queue_writing(self):
+        """
+        共有メモリ上のキューを監視し、キューがemptyでない限り書き込みを続ける。
+        """
+        print("called!")
+        while not self.queue.empty():
+            print("GETTING QUEUE DATA...")
+            self.writeBook.wirte_data(self.write_index, self.queue.get(block=True))
+            self.write_index += 1
+
+        self.writeBook.book.save(self.writeBook.path)
+
+
 def resource_path(relative_path):#バイナリフィルのパスを提供
     try:
         base_path = sys._MEIPASS
