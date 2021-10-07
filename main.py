@@ -213,10 +213,14 @@ def main():
                     if job.info_scrap_flg:
                         #0除算対策
                         sum = job.scrap.search_sum
+                        counter = job.scrap.end_count
                         if job.scrap.search_sum == 0:
                             sum = 1
+                        if counter > sum:
+                            counter = sum-1
+                        
                         try:   
-                            cancel = sig.one_line_progress_meter("処理中です...", job.scrap.end_count, sum, 'prog', "店舗情報を抽出しています。\nこれには数時間かかることがあります。", orientation='h',)
+                            cancel = sig.one_line_progress_meter("処理中です...", counter, sum, 'prog', "店舗情報を抽出しています。\nこれには数時間かかることがあります。", orientation='h',)
                         except (TypeError, RuntimeError):
                             cancel = sig.OneLineProgressMeter(
                                 "処9理中です...", 0, 1, 'prog', "現在準備中です。")
