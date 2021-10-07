@@ -46,7 +46,7 @@ class ScrapingURL(object):
         self.options.add_experimental_option("prefs", prefs)
         browser_path = 'chrome-win/chrome.exe'
         self.options.binary_location = browser_path
-        #self.driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
+        #driver = webdriver.Chrome(executable_path=driver_path, options=self.options)
         self.writeRow = 0
         self.row_counter = row_counter
         self.url_list = sync_data_list
@@ -208,8 +208,8 @@ class ScrapingInfomation(ScrapingURL):
 
         """
         super(ScrapingInfomation, self).__init__(path, row_counter, url_list_data)
-        #self.driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
-        self.get_new_driver = get_new_driver
+        #driver = webdriver.Chrome(executable_path=driver_path, options=self.options)
+        #self.thread_local = th.local()
         self.table_menu = {
             12:'お店のホームページ',
             18:'アクセス・道案内',
@@ -225,29 +225,47 @@ class ScrapingInfomation(ScrapingURL):
             28:'備考',
             29:'スタッフ募集',
         }
-      
+    
+    def get_webdriver(self):
+        driver = getattr(self.thread_local, 'driver', None)
+        if driver is None:
+            driver = webdriver.Chrome(self.driver_path, options=self.options)
+        return driver
+
     def loadHtml(self, store_url_data:list,):
-        #conunter = 
-        self.driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
-        wait = WebDriverWait(self.driver, 180)
-        try:
-            url = store_url_data[2] #[junle, area, url]の想定
-            self.driver.get(url)
-        except (WebDriverException, TimeoutException):
-            self.book.save(self.path)
-            self.driver.delete_all_cookies()
-            self.driver.quit()
-            time.sleep(30)#強制30秒待機
-            wait = WebDriverWait(self.driver, 180)
-            self.driver.get(url)
-            #issues: urlに''が渡されるとInvaild argument Exceptionが発生し処理が止まる。
-        else:
-            pass
-        wait.until(EC.visibility_of_all_elements_located)
-        html = self.driver.page_source
-        data_list:list = self.__extraction(html, store_url_data)
-        self.driver.quit()
-        return data_list #[A,B,C....]
+        #conunter  
+        driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
+        wait = WebDriverWait(driver, 180)
+        parent_data_list = []
+        load_counter = 0
+        for url_data in store_url_data:
+            
+            if load_counter % 100 == 0 and load_counter != 0: #メモリ対策でブラウザを再起動。
+                driver.delete_all_cookies()
+                driver.quit()
+                time.sleep(10)
+                driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
+                wait = WebDriverWait(driver, 180)
+                 
+            try:
+                url = url_data[2] #[[junle, area, url], [],....]の想定
+                driver.get(url)
+            except (WebDriverException, TimeoutException):
+                self.book.save(self.path)
+                driver.delete_all_cookies()
+                driver.quit()
+                time.sleep(30)#強制30秒待機
+                wait = WebDriverWait(driver, 180)
+                driver.get(url)
+                #issues: urlに''が渡されるとInvaild argument Exceptionが発生し処理が止まる。
+            else:
+                pass
+            wait.until(EC.visibility_of_all_elements_located)
+            html = driver.page_source
+            data_list:list = self.__extraction(html, url_data)
+            parent_data_list.append(data_list)
+        driver.quit()
+        return parent_data_list #[[A,B,C....], ....]
 
     def __create_data_list(self, data_length):
         """
@@ -280,102 +298,85 @@ class ScrapingInfomation(ScrapingURL):
                 address_low = re.split(
                     '東京都|北海道|(?:京都|大阪)府|.{2,3}県', all_address)  # 県名とそれ以降を分離
                 prefecture = prefecture_search.group()  # 県名
+                print(prefecture)
                 if prefecture != store_url_data[1]:
-                    data_list[0] = ''
-                    data_list[6] = ''
-                    data_list[8] = ''
+                    return
                     """
                     self.sheet.cell(row=index, column=8, value='')
                     self.sheet.cell(row=index, column=6, value='')
                     self.sheet.cell(row=index, column=1, value='')
                     """
-                    pref_tf = False
                 jis_code = self.call_jis_code(prefecture)
                 municipality = address_low[1]  # それ以降
                 break
         # 指定エリアでないとき、下記処理を行わない
         try:
-            if pref_tf:
-                store_name_tag = soup.select_one('p.detailTitle > a')
-                store_name = store_name_tag.get_text() if store_name_tag != None else None
-                #store_name = store_name_tag.get_text()
-                print("店名：" + store_name)
-                st_name_kana_tag = soup.select_one(
-                    'div > p.fs10.fgGray')
-                st_name_kana = st_name_kana_tag.get_text() if st_name_kana_tag != None else None
-                #st_name_kana = st_name_kana_tag.get_text()
-                print("店名カナ：" + st_name_kana)
-                try:
-                    tel_tag = soup.select_one(
-                        'div.mT30 > table > tbody > tr > td > a')
-                    tel_url = tel_tag.get('href')
-                    respons_tel = rq.get(tel_url)
-                    html_tel = respons_tel.text
-                    soup_tel = bs(html_tel, 'lxml')
-                    tel_num_tag = soup_tel.select_one(
-                        'table > tr > td')
-                    tel_num = tel_num_tag.get_text() if tel_num_tag != None else None
-                    #tel_num = tel_num_tag.get_text()
-                    tel_num = str(tel_num)
-                    tel_num = tel_num.replace(' ', "")
-                    print("TEL : " + tel_num)
-                except:
-                    tel_num = None
-                    pass
-                    # ヘッダー画像の有無
-                head_img_tag = soup.select_one('div.slnHeaderSliderPhoto.jscViewerPhoto')    
-                head_img_yn = "有" if head_img_tag != None else "無"
+            store_name_tag = soup.select_one('p.detailTitle > a')
+            store_name = store_name_tag.get_text() if store_name_tag != None else None
+            #store_name = store_name_tag.get_text()
+            print("店名：" + store_name)
+            st_name_kana_tag = soup.select_one(
+                'div > p.fs10.fgGray')
+            st_name_kana = st_name_kana_tag.get_text() if st_name_kana_tag != None else None
+            #st_name_kana = st_name_kana_tag.get_text()
+            print("店名カナ：" + st_name_kana)
+            try:
+                tel_tag = soup.select_one(
+                    'div.mT30 > table > tbody > tr > td > a')
+                tel_url = tel_tag.get('href')
+                respons_tel = rq.get(tel_url)
+                html_tel = respons_tel.text
+                soup_tel = bs(html_tel, 'lxml')
+                tel_num_tag = soup_tel.select_one(
+                    'table > tr > td')
+                tel_num = tel_num_tag.get_text() if tel_num_tag != None else None
+                #tel_num = tel_num_tag.get_text()
+                tel_num = str(tel_num)
+                tel_num = tel_num.replace(' ', "")
+                print("TEL : " + tel_num)
+            except:
+                tel_num = None
+                pass
+                # ヘッダー画像の有無
+            head_img_tag = soup.select_one('div.slnHeaderSliderPhoto.jscViewerPhoto')    
+            head_img_yn = "有" if head_img_tag != None else "無"
 
-                catch_copy_tag = soup.select_one('div > p > b > strong')
-                catch_copy = catch_copy_tag.get_text() if catch_copy_tag != None else None
-                #catch_copy = catch_copy_tag.get_text()
-                pankuzu_tag = soup.select('#preContents > ol > li')
-                pankuzu = ""
-                for pan in pankuzu_tag:
-                    pankuzu += pan.get_text() if pan != None else ""
-                print(pankuzu)
+            catch_copy_tag = soup.select_one('div > p > b > strong')
+            catch_copy = catch_copy_tag.get_text() if catch_copy_tag != None else None
+            #catch_copy = catch_copy_tag.get_text()
+            pankuzu_tag = soup.select('#preContents > ol > li')
+            pankuzu = ""
+            for pan in pankuzu_tag:
+                pankuzu += pan.get_text() if pan != None else ""
+            print(pankuzu)
 
-                slide_img_tag = soup.select(
-                    'div.slnTopImgCarouselWrap.jscThumbWrap > ul > li')
-                slide_cnt = len(slide_img_tag)
-            
-            #append data_list
-                data_list[0] = store_url_data[0]
-                data_list[1] = store_name
-                data_list[2] = st_name_kana
-                data_list[3] = tel_num
-                data_list[4] = jis_code
-                data_list[5] = prefecture
-                data_list[6] = municipality
-                data_list[7] = store_url_data[2]
-                data_list[8] = self.__scrap_day()
-                data_list[12] = pankuzu
-                data_list[15] = slide_cnt
-                data_list[16] = catch_copy
-                data_list[13] = head_img_yn 
+            slide_img_tag = soup.select(
+                'div.slnTopImgCarouselWrap.jscThumbWrap > ul > li')
+            slide_cnt = len(slide_img_tag)
+        
+        #append data_list
+            data_list[0] = store_url_data[0]
+            data_list[1] = store_name
+            data_list[2] = st_name_kana
+            data_list[3] = tel_num
+            data_list[4] = jis_code
+            data_list[5] = prefecture
+            data_list[6] = municipality
+            data_list[7] = store_url_data[2]
+            data_list[8] = self.__scrap_day()
+            data_list[12] = pankuzu
+            data_list[15] = slide_cnt
+            data_list[16] = catch_copy
+            data_list[13] = head_img_yn 
 
-                for j in range(2, len(table_value)):
-                    for row, menu in zip(self.table_menu.keys(), self.table_menu.values()):  
-                        if table_menu[j].get_text() == menu:
-                            data_list[row-1] = table_value[j].get_text()
-                            break
-            else:
-                print("prefname is False")
-                return data_list
+            for j in range(2, len(table_value)):
+                for row, menu in zip(self.table_menu.keys(), self.table_menu.values()):  
+                    if table_menu[j].get_text() == menu:
+                        data_list[row-1] = table_value[j].get_text()
+                        break
         except:
-            #self.book_save()
             pass
         return data_list
-
-    def restart(self):
-        """
-        info_scrapに使用するブラウザの再起動
-        """
-        self.book.save(self.path)
-        self.driver.delete_all_cookies()
-        self.driver.quit()
-        time.sleep(5)
-        self.driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
 
     def call_jis_code(self, key):
         pref_jiscode = {
@@ -487,13 +488,21 @@ class WriteWorkBook():
         self.sheet.freeze_panes = "A2"
         self.book.save(self.path)
     
-    def wirte_data(self, index,data_list:list):
+    def wirte_data(self, data_list:list):
         """
         1プロセスあたりのスクレイピングデータを書き込む。\n
         data_list = [junle, store_name, st_name_kana, ....]
         """
+        index = self.sheet.max_row
+        if data_list[0] == '':
+            return False
         for col in range(1, 30+1):
-            self.sheet.cell(row=index, column=col, value=data_list[col-1])
+            try:
+                self.sheet.cell(row=index+1, column=col, value=data_list[col-1])
+                index += 1
+            except IndexError:
+                return False
+        return True 
         
 
 
@@ -511,10 +520,13 @@ class Implementation():
         self.scrap = ScrapingInfomation(path, self.max_row_counter, self.scrap_url_list, self.get_new_driver)
         self.scrap2 = ScrapingInfomation(path, self.max_row_counter, self.scrap_url_list, self.get_new_driver)
         self.writeBook = WriteWorkBook(path)
+        #self.driver1 = webdriver.Chrome(executable_path=self.scrap.driver_path, options=self.scrap.options)
+        #self.driver2 = webdriver.Chrome(executable_path=self.scrap.driver_path, options=self.scrap.options)
+        #self.driver_list = self.manager.list()
         self.end_count = 0
         self.search_sum = 1
         self.write_index = 2 #ワークシート書き込みの初期行数：2
-        
+    
     def run(self):
     #row_counter = Value('i', 0)
     #manager = Manager()
@@ -532,53 +544,81 @@ class Implementation():
         search_flg = True
         scraped_index = 0
         readyed_index = 0
-
+        end_index = 0
         while scrap_flg:
+            self.search_sum = len(self.scrap_url_list)#表示更新用
+            #２つのdriverで並列にスクレイピングするため、共有メモリのリストから個別に分けてdataを読み込む。
+            url_list1 = self.create_url_data_list(scraped_index) 
+            url_list2 = self.create_url_data_list(scraped_index+1)    
+            result1 = p.apply_async(self.scrap2.loadHtml, args=([url_list1,]))
+            result2 = p.apply_async(self.scrap.loadHtml, args=([url_list2,]))
+            doing = True
+            async_result = [False, False]
+            while doing:
+                if False not in async_result:
+                    doing = False
+                    break
+                if result1.ready():
+                    async_result[0] = True
+                    #print(result1.get())
+                    self.queue.put(result1.get())
+                    #self.end_count += 1
+                if result2.ready():
+                    async_result[1] = True
+                    #print(result2.get())
+                    self.queue.put(result2.get())
+                    #self.end_count += 1
+            self.queue_writing()
+            #p.apply_async(self.queue_writing)
             self.search_sum = len(self.scrap_url_list)
-            for index in range(scraped_index, readyed_index, 2):
-                if self.end_count % 100 == 0 and self.end_count != 0:
-                    self.scrap.restart()
-                    self.scrap2.restart()
-                result1 = p.apply_async(self.scrap2.loadHtml, args=([self.scrap_url_list[index]]))
-                result2 = p.apply_async(self.scrap.loadHtml, args=([self.scrap_url_list[index+1]]))
-                doing = True
-                async_result = [False, False]
-                while doing:
-                    if False not in async_result:
-                        doing = False
-                        break
-                    if result1.ready():
-                        async_result[0] = True
-                        #print(result1.get())
-                        self.queue.put(result1.get())
-                    if result2.ready():
-                        async_result[1] = True
-                        #print(result2.get())
-                        self.queue.put(result2.get())
-                p.apply_async(self.queue_writing)
-                self.end_count += 2
-                self.search_sum = len(self.scrap_url_list)
-            
-            scraped_index = readyed_index
-            readyed_index = self.search.row_counter.value #最大読み込み行数の更新
             #print("scrap_index:" + str(scraped_index))
             #print("ready_index" + str(readyed_index))
             #print("ready : " + str(readyed_row))
             if future.ready():
                 future.get()
+                end_index = len(self.scrap_url_list)
                 search_flg = False
 
             if (search_flg == False and 
                 scrap_flg == True and 
-                readyed_index != 0 and
-                readyed_index == scraped_index):
+                end_index == self.end_count):
                 scrap_flg = False
                 print("break!!")
                 self.search.book.save(self.search.path)
-                #self.search.sub_driver.quit()
-                self.scrap.driver.quit()
                 break
-        
+    
+    def determin_load_index(self, list1, list2):
+        if len(list1) > len(list2):
+            return len(list1)
+        else:
+            return len(list2)
+
+    def create_url_data_list(self, start_index):
+        returnData = []
+        addDataLength = len(self.scrap_url_list)
+        for i in range(start_index, addDataLength, 2):
+            returnData.append(self.scrap_url_list[i])
+        return returnData
+
+    def driver_shutdown(self):
+        """
+        close the browther and call webdriver.quit() 
+        """
+        self.driver1.quit()
+        self.driver2.quit()
+
+    def restart(self):
+        """
+        scrapImfomation使用のwebdriverのクッキー削除とメモリの解放を行う。
+        """
+        self.driver1.delete_all_cookies()
+        self.driver2.delete_all_cookies()
+        self.driver1.quit()
+        self.driver2.quit()
+        time.sleep(5)
+        self.driver1 = webdriver.Chrome(executable_path=self.scrap.driver_path, options=self.scrap.options)
+        self.driver2 = webdriver.Chrome(executable_path=self.scrap.driver_path, options=self.scrap.options)
+
     def queue_writing(self):
         """
         共有メモリ上のキューを監視し、キューがemptyでない限り書き込みを続ける。
@@ -586,8 +626,12 @@ class Implementation():
         print("called!")
         while not self.queue.empty():
             print("GETTING QUEUE DATA...")
-            self.writeBook.wirte_data(self.write_index, self.queue.get(block=True))
-            self.write_index += 1
+            data = self.queue.get(block=True)
+            if len(data) != 0:
+                for d in data:
+                    judge = self.writeBook.wirte_data(d)
+                    if judge:
+                        self.end_count += 1
 
         self.writeBook.book.save(self.writeBook.path)
 
