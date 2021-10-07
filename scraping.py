@@ -145,7 +145,7 @@ class ScrapingURL(object):
                     links_list = soup.select("#mainContents > ul > li > div.slnCassetteHeader > h3 > a")
                 else:
                     links_list = soup.select("#mainContents > ul > li > div.slcHeadWrap > div > div.slcHeadContentsInner > h3 > a")
-                print(links_list)
+                #print(links_list)
                 #sheet.max_rowの呼び出しの際に発生するRunTimeError対策
                 try:
                     write_row = self.sheet.max_row
@@ -199,7 +199,7 @@ class ScrapingURL(object):
         #driver.close()
 
 class ScrapingInfomation(ScrapingURL):
-    def __init__(self, path, row_counter, url_list_data, get_new_driver):
+    def __init__(self, path, row_counter, url_list_data, end_count):
         """
         path : WorkSheetPath \n
         row_counter : Manager.Value('i', 0) \n
@@ -210,6 +210,7 @@ class ScrapingInfomation(ScrapingURL):
         super(ScrapingInfomation, self).__init__(path, row_counter, url_list_data)
         #driver = webdriver.Chrome(executable_path=driver_path, options=self.options)
         #self.thread_local = th.local()
+        self.end_count = end_count
         self.table_menu = {
             12:'お店のホームページ',
             18:'アクセス・道案内',
@@ -226,12 +227,6 @@ class ScrapingInfomation(ScrapingURL):
             29:'スタッフ募集',
         }
     
-    def get_webdriver(self):
-        driver = getattr(self.thread_local, 'driver', None)
-        if driver is None:
-            driver = webdriver.Chrome(self.driver_path, options=self.options)
-        return driver
-
     def loadHtml(self, store_url_data:list,):
         #conunter  
         driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
@@ -263,7 +258,11 @@ class ScrapingInfomation(ScrapingURL):
             wait.until(EC.visibility_of_all_elements_located)
             html = driver.page_source
             data_list:list = self.__extraction(html, url_data)
-            parent_data_list.append(data_list)
+            self.end_count.value += 1
+            if data_list == None:
+                pass
+            else:
+                parent_data_list.append(data_list)
         driver.quit()
         return parent_data_list #[[A,B,C....], ....]
 
@@ -300,7 +299,8 @@ class ScrapingInfomation(ScrapingURL):
                 prefecture = prefecture_search.group()  # 県名
                 print(prefecture)
                 if prefecture != store_url_data[1]:
-                    return
+                    #self.url_list.remove(store_url_data)
+                    return None
                     """
                     self.sheet.cell(row=index, column=8, value='')
                     self.sheet.cell(row=index, column=6, value='')
@@ -514,19 +514,22 @@ class Implementation():
         self.manager = Manager() #共有メモリ
         self.max_row_counter = self.manager.Value('i', 0) #最大読み込み行数格納用
         self.scrap_url_list = self.manager.list() #URL格納用リスト
-        self.queue = self.manager.Queue() #結果格納用キュー
-        self.get_new_driver = self.manager.Value('b', True)
+        self.info_datas = self.manager.list() #結果格納用リスト
+        self.end_count = self.manager.Value('i', 0)
         self.search = ScrapingURL(path, self.max_row_counter, self.scrap_url_list)
-        self.scrap = ScrapingInfomation(path, self.max_row_counter, self.scrap_url_list, self.get_new_driver)
-        self.scrap2 = ScrapingInfomation(path, self.max_row_counter, self.scrap_url_list, self.get_new_driver)
+        self.scrap = ScrapingInfomation(path, self.max_row_counter, self.scrap_url_list, self.end_count)
+        self.scrap2 = ScrapingInfomation(path, self.max_row_counter, self.scrap_url_list, self.end_count)
         self.writeBook = WriteWorkBook(path)
         #self.driver1 = webdriver.Chrome(executable_path=self.scrap.driver_path, options=self.scrap.options)
         #self.driver2 = webdriver.Chrome(executable_path=self.scrap.driver_path, options=self.scrap.options)
         #self.driver_list = self.manager.list()
-        self.end_count = 0
         self.search_sum = 1
-        self.write_index = 2 #ワークシート書き込みの初期行数：2
+        self.writed_index = 0
     
+
+    def call_prog_value(self):
+        return self.end_count.value, self.search_sum
+
     def run(self):
     #row_counter = Value('i', 0)
     #manager = Manager()
@@ -555,21 +558,24 @@ class Implementation():
             doing = True
             async_result = [False, False]
             while doing:
+                self.search_sum = len(self.scrap_url_list)#表示更新用
                 if False not in async_result:
                     doing = False
                     break
                 if result1.ready():
                     async_result[0] = True
                     #print(result1.get())
-                    self.queue.put(result1.get())
-                    #self.end_count += 1
+                    self.info_datas.append(result1.get())
+                
+                    
                 if result2.ready():
                     async_result[1] = True
                     #print(result2.get())
-                    self.queue.put(result2.get())
-                    #self.end_count += 1
-            self.queue_writing()
-            #p.apply_async(self.queue_writing)
+                    self.info_datas.append(result2.get())
+                
+                    
+            self.info_datas_writing()
+            #p.apply_async(self.info_datas_writing)
             self.search_sum = len(self.scrap_url_list)
             #print("scrap_index:" + str(scraped_index))
             #print("ready_index" + str(readyed_index))
@@ -586,12 +592,6 @@ class Implementation():
                 print("break!!")
                 self.search.book.save(self.search.path)
                 break
-    
-    def determin_load_index(self, list1, list2):
-        if len(list1) > len(list2):
-            return len(list1)
-        else:
-            return len(list2)
 
     def create_url_data_list(self, start_index):
         returnData = []
@@ -600,39 +600,23 @@ class Implementation():
             returnData.append(self.scrap_url_list[i])
         return returnData
 
-    def driver_shutdown(self):
+    def info_datas_writing(self):
         """
-        close the browther and call webdriver.quit() 
-        """
-        self.driver1.quit()
-        self.driver2.quit()
-
-    def restart(self):
-        """
-        scrapImfomation使用のwebdriverのクッキー削除とメモリの解放を行う。
-        """
-        self.driver1.delete_all_cookies()
-        self.driver2.delete_all_cookies()
-        self.driver1.quit()
-        self.driver2.quit()
-        time.sleep(5)
-        self.driver1 = webdriver.Chrome(executable_path=self.scrap.driver_path, options=self.scrap.options)
-        self.driver2 = webdriver.Chrome(executable_path=self.scrap.driver_path, options=self.scrap.options)
-
-    def queue_writing(self):
-        """
-        共有メモリ上のキューを監視し、キューがemptyでない限り書き込みを続ける。
+        共有メモリ上のリストを監視し、キューがemptyでない限り書き込みを続ける。
         """
         print("called!")
-        while not self.queue.empty():
-            print("GETTING QUEUE DATA...")
-            data = self.queue.get(block=True)
+        length = len(self.info_datas)
+        print(length)
+        for i in range(self.writed_index, length):
+            #print(self.info_datas.empty())
+            print(self.info_datas[0])
+            data = self.info_datas[i]
+            #print(data)
             if len(data) != 0:
                 for d in data:
                     judge = self.writeBook.wirte_data(d)
-                    if judge:
-                        self.end_count += 1
-
+                    #self.end_count += 1
+                self.writed_index += 1
         self.writeBook.book.save(self.writeBook.path)
 
 

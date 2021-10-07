@@ -208,19 +208,20 @@ def main():
                 job = Job(value['path'], area_list, value['store_class'])
                 job_thread = th.Thread(target=job.doJob, daemon=True)
                 job_thread.start()
+
                 running = True
                 while running:
+                    prog_value = job.scrap.call_prog_value()
+                    sum = prog_value[1]
+                    counter = prog_value[0]
+
                     if job.info_scrap_flg:
-                        #0除算対策
-                        sum = job.scrap.search_sum
-                        counter = job.scrap.end_count
-                        if job.scrap.search_sum == 0:
+                        if sum == 0:
                             sum = 1
-                        if counter > sum:
-                            counter = sum-1
-                        
+                        if counter >= sum:
+                            counter = sum - 1
                         try:   
-                            cancel = sig.one_line_progress_meter("処理中です...", counter, sum, 'prog', "店舗情報を抽出しています。\nこれには数時間かかることがあります。", orientation='h',)
+                            cancel = sig.one_line_progress_meter("処理中です...", counter-1, sum, 'prog', "店舗情報を抽出しています。\nこれには数時間かかることがあります。", orientation='h',)
                         except (TypeError, RuntimeError):
                             cancel = sig.OneLineProgressMeter(
                                 "処9理中です...", 0, 1, 'prog', "現在準備中です。")
