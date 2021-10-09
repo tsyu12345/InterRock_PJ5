@@ -606,7 +606,7 @@ class Implementation():
         """
         print("called!")
         length = len(self.info_datas)
-        print(length)
+        print("write_data_len : " + str(length))
         for i in range(self.writed_index, length):
             #print(self.info_datas.empty())
             print(self.info_datas[0])
