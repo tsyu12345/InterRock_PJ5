@@ -22,11 +22,6 @@ import sys
 import os
 
 class ScrapingURL(object):
-    book = px.Workbook()
-    sheet = book.worksheets[0]
-    sheet_row = 1
-    RETRY = 3
-    TIMEOUT = 15
     def __init__(self, path, row_counter, sync_data_list):
         self.path = path
         self.driver_path = 'chromedriver_win32/chromedriver.exe'
@@ -51,48 +46,7 @@ class ScrapingURL(object):
         self.row_counter = row_counter
         self.url_list = sync_data_list
         self.table_list = [
-
         ]
-        self.init_work_book()
-
-    def init_work_book(self):
-        menu = [
-            "ジャンル",
-            "店舗名",
-            "店舗名カナ",
-            "電話番号",
-            "都道府県コード",
-            "都道府県",
-            "市区町村・番地",
-            "店舗URL",
-            "詳細データ取得日",
-            "料金プラン着地",
-            "月額料金",
-            "お店のホームページ",
-            "パンくず",
-            "ヘッダー画像有無",
-            "こだわり有無",
-            "スライド画像数",
-            "キャッチコピー",
-            "アクセス・道案内",
-            "営業時間",
-            "定休日",
-            "支払い方法",
-            "設備",
-            "カット価格",
-            "席数",
-            "スタッフ数",
-            "駐車場",
-            "こだわり条件",
-            "備考",
-            "スタッフ募集",
-            "最終更新日"
-        ]
-        for c in range(1, 30+1):
-            self.sheet.cell(row=1, column=c, value=menu[c-1])
-        self.sheet.freeze_panes = "A2"
-
-        self.book.save(self.path)
 
     def all_scrap(self, area_list):  # 全件抽出
         class_menu = [
@@ -147,18 +101,14 @@ class ScrapingURL(object):
                     links_list = soup.select("#mainContents > ul > li > div.slcHeadWrap > div > div.slcHeadContentsInner > h3 > a")
                 #print(links_list)
                 #sheet.max_rowの呼び出しの際に発生するRunTimeError対策
-                try:
-                    write_row = self.sheet.max_row
-                except RuntimeError: #max_rowが取得できなかった場合は、手動でのindexに切り替え。
-                    write_row = self.writeRow
                 
                 for a in links_list:
                     url = a.get('href')
                     print(url)
-                    write_row += 1
                     self.writeRow += 1
                     add = [store_junle, area, url]
                     self.url_list.append(add)
+                    self.row_counter.value += 1
                     """
                     self.sheet.cell(row=write_row, column=1, value=store_junle)#ジャンル
                     self.sheet.cell(row=write_row, column=6, value=area)#エリア
@@ -166,7 +116,6 @@ class ScrapingURL(object):
                     """
                     #print(self.sheet.cell(row=r+1, column=8).value)
                 #print(self.sheet.max_row)
-                self.row_counter.value = len(self.url_list)
                 print(self.row_counter)
                 #self.book.save(self.path)
                 #Issue:↑で一時保存するとinfo_scrap()との衝突するのかPermissionErrorが発生する場合がある。
@@ -199,7 +148,7 @@ class ScrapingURL(object):
         #driver.close()
 
 class ScrapingInfomation(ScrapingURL):
-    def __init__(self, path, row_counter, url_list_data, end_count):
+    def __init__(self, path, row_counter, url_list_data, end_count, info_datas):
         """
         path : WorkSheetPath \n
         row_counter : Manager.Value('i', 0) \n
@@ -211,6 +160,7 @@ class ScrapingInfomation(ScrapingURL):
         #driver = webdriver.Chrome(executable_path=driver_path, options=self.options)
         #self.thread_local = th.local()
         self.end_count = end_count
+        self.info_datas = info_datas #結果格納用リスト
         self.table_menu = {
             12:'お店のホームページ',
             18:'アクセス・道案内',
@@ -258,13 +208,10 @@ class ScrapingInfomation(ScrapingURL):
             wait.until(EC.visibility_of_all_elements_located)
             html = driver.page_source
             data_list:list = self.__extraction(html, url_data)
+            self.info_datas.append(data_list)
             self.end_count.value += 1
-            if data_list == None:
-                pass
-            else:
-                parent_data_list.append(data_list)
         driver.quit()
-        return parent_data_list #[[A,B,C....], ....]
+        
 
     def __create_data_list(self, data_length):
         """
@@ -300,7 +247,7 @@ class ScrapingInfomation(ScrapingURL):
                 print(prefecture)
                 if prefecture != store_url_data[1]:
                     #self.url_list.remove(store_url_data)
-                    return None
+                    return []
                     """
                     self.sheet.cell(row=index, column=8, value='')
                     self.sheet.cell(row=index, column=6, value='')
@@ -447,8 +394,9 @@ class ScrapingInfomation(ScrapingURL):
 class WriteWorkBook():
     book = px.Workbook()
     sheet = book.worksheets[0]
-    def __init__(self, path):
+    def __init__(self, path, end_count):
         self.path = path
+        self.end_count = end_count #共有メモリ上のカウンタ変数
     
     def init_work_book(self):
         menu = [
@@ -488,20 +436,17 @@ class WriteWorkBook():
         self.sheet.freeze_panes = "A2"
         self.book.save(self.path)
     
-    def wirte_data(self, data_list:list):
+    def wirte_data(self, data_list:list, index:int):
         """
         1プロセスあたりのスクレイピングデータを書き込む。\n
         data_list = [junle, store_name, st_name_kana, ....]
         """
-        index = self.sheet.max_row
-        if data_list[0] == '':
-            return False
         for col in range(1, 30+1):
             try:
-                self.sheet.cell(row=index+1, column=col, value=data_list[col-1])
-                index += 1
+                self.sheet.cell(row=index, column=col, value=data_list[col-1])
             except IndexError:
                 return False
+            #self.end_count.value += 1
         return True 
         
 
@@ -517,14 +462,19 @@ class Implementation():
         self.info_datas = self.manager.list() #結果格納用リスト
         self.end_count = self.manager.Value('i', 0)
         self.search = ScrapingURL(path, self.max_row_counter, self.scrap_url_list)
-        self.scrap = ScrapingInfomation(path, self.max_row_counter, self.scrap_url_list, self.end_count)
-        self.scrap2 = ScrapingInfomation(path, self.max_row_counter, self.scrap_url_list, self.end_count)
-        self.writeBook = WriteWorkBook(path)
+        self.scrap = ScrapingInfomation(path, self.max_row_counter, self.scrap_url_list, self.end_count, self.info_datas)
+        self.scrap2 = ScrapingInfomation(path, self.max_row_counter, self.scrap_url_list, self.end_count, self.info_datas)
+        self.writeBook = WriteWorkBook(path, self.end_count,)
+        self.writeBook.init_work_book()
         #self.driver1 = webdriver.Chrome(executable_path=self.scrap.driver_path, options=self.scrap.options)
         #self.driver2 = webdriver.Chrome(executable_path=self.scrap.driver_path, options=self.scrap.options)
         #self.driver_list = self.manager.list()
         self.search_sum = 1
-        self.writed_index = 0
+        self.writed_index = 0 #結果格納リストの書き込み済みindex数
+        self.book_index = 1 #ワークシートへの書き込み済み行数。
+        self.list1 = []#リクエストURLの格納用
+        self.list2 = []
+        self.scraped_url_index = 0 #リクエスト済みのURLリストのindex数
     
 
     def call_prog_value(self):
@@ -545,38 +495,41 @@ class Implementation():
 
         scrap_flg = True
         search_flg = True
-        scraped_index = 0
-        readyed_index = 0
         end_index = 0
         while scrap_flg:
-            self.search_sum = len(self.scrap_url_list)#表示更新用
+            self.search_sum = self.search.row_counter.value#表示更新用
             #２つのdriverで並列にスクレイピングするため、共有メモリのリストから個別に分けてdataを読み込む。
-            url_list1 = self.create_url_data_list(scraped_index) 
-            url_list2 = self.create_url_data_list(scraped_index+1)    
-            result1 = p.apply_async(self.scrap2.loadHtml, args=([url_list1,]))
-            result2 = p.apply_async(self.scrap.loadHtml, args=([url_list2,]))
+            if len(self.scrap_url_list) > 0:
+                self.create_url_data_list()    
+            result1 = p.apply_async(self.scrap2.loadHtml, args=([self.list1,]))
+            result2 = p.apply_async(self.scrap.loadHtml, args=([self.list2,]))
             doing = True
             async_result = [False, False]
             while doing:
-                self.search_sum = len(self.scrap_url_list)#表示更新用
+                self.search_sum = self.search.row_counter.value
                 if False not in async_result:
                     doing = False
+                    self.info_datas_writing()
                     break
                 if result1.ready():
+                    print("result1 end")
                     async_result[0] = True
+                    #self.end_count.value += 1
                     #print(result1.get())
-                    self.info_datas.append(result1.get())
+                    #self.info_datas.append(result1.get())
                 
                     
                 if result2.ready():
+                    print("result2 end")
                     async_result[1] = True
+                    #self.end_count.value += 1
                     #print(result2.get())
-                    self.info_datas.append(result2.get())
+                    #self.info_datas.append(result2.get())
                 
                     
-            self.info_datas_writing()
+            #self.info_datas_writing()
             #p.apply_async(self.info_datas_writing)
-            self.search_sum = len(self.scrap_url_list)
+            self.search_sum = self.search.row_counter.value
             #print("scrap_index:" + str(scraped_index))
             #print("ready_index" + str(readyed_index))
             #print("ready : " + str(readyed_row))
@@ -589,16 +542,20 @@ class Implementation():
                 scrap_flg == True and 
                 end_index == self.end_count):
                 scrap_flg = False
+                self.info_datas_writing()
                 print("break!!")
-                self.search.book.save(self.search.path)
+                self.writeBook.book.save(self.writeBook.path)
                 break
 
-    def create_url_data_list(self, start_index):
-        returnData = []
+    def create_url_data_list(self):
         addDataLength = len(self.scrap_url_list)
-        for i in range(start_index, addDataLength, 2):
-            returnData.append(self.scrap_url_list[i])
-        return returnData
+        print("now scrap end index :" + str(self.scraped_url_index))
+        for i in range(self.scraped_url_index, addDataLength):
+            if i % 2 == 0:
+                self.list1.append(self.scrap_url_list[i])
+            else:
+                self.list2.append(self.scrap_url_list[i])
+        self.scraped_url_index += addDataLength-1
 
     def info_datas_writing(self):
         """
@@ -606,17 +563,16 @@ class Implementation():
         """
         print("called!")
         length = len(self.info_datas)
-        print("write_data_len : " + str(length))
+        #print("write_data_len : " + str(length))
         for i in range(self.writed_index, length):
             #print(self.info_datas.empty())
-            print(self.info_datas[0])
-            data = self.info_datas[i]
+            #print(self.info_datas[0])
+            #data = self.info_datas[i]
             #print(data)
-            if len(data) != 0:
-                for d in data:
-                    judge = self.writeBook.wirte_data(d)
+            self.writeBook.wirte_data(self.info_datas[i], self.book_index)
                     #self.end_count += 1
-                self.writed_index += 1
+            self.writed_index += 1
+            self.book_index += 1
         self.writeBook.book.save(self.writeBook.path)
 
 
