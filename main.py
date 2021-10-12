@@ -230,7 +230,7 @@ def main():
                         if cancel == False and job.end_flg == False:
                             print("detati in ")
                             detati = True
-                            thread = th.Thread(target=job.cancel)
+                            thread = th.Thread(target=job.scrap.cancel)
                             thread.start()
                             while thread.is_alive() != True:
                                 sig.popup_animated('animationGifs/images/icon_loader_f_ww_01_s1.gif',message="抽出データの確認を行っています。\nあと少しで完了します。")
