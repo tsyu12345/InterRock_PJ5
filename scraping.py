@@ -500,50 +500,38 @@ class Implementation():
             #２つのdriverで並列にスクレイピングするため、共有メモリのリストから個別に分けてdataを読み込む。
             if len(self.scrap_url_list) > 0:
                 self.create_url_data_list()
-            if len(self.list1) > 0:
-                result1 = self.p.apply_async(self.scrap2.loadHtml, args=([self.list1.pop(0),]))
-            if len(self.list2) > 0:
-                result2 = self.p.apply_async(self.scrap.loadHtml, args=([self.list2.pop(0),]))
-            
-                
-            doing = True
-            async_result = [False, False]
-            while doing:
+                result1 = self.p.apply_async(self.scrap2.loadHtml, args=([self.list1,]))
+                result2 = self.p.apply_async(self.scrap.loadHtml, args=([self.list2,]))
+
+                #join scraping and Writing work book.
+                doing = True
+                async_result = [False, False]
+                while doing:
+                    self.search_sum = self.search.row_counter.value
+                    if False not in async_result:
+                        doing = False
+                        self.info_datas_writing()
+                        break
+                    if result1.ready():
+                        print("result1 end")
+                        async_result[0] = True
+                        self.list1.clear()
+                        
+                    if result2.ready():
+                        print("result2 end")
+                        async_result[1] = True
+                        self.list2.clear()        
+
                 self.search_sum = self.search.row_counter.value
-                if False not in async_result:
-                    doing = False
-                    self.info_datas_writing()
-                    break
-                if result1.ready():
-                    print("result1 end")
-                    async_result[0] = True
-                    #self.end_count.value += 1
-                    #print(result1.get())
-                    #self.info_datas.append(result1.get())
-                
-                    
-                if result2.ready():
-                    print("result2 end")
-                    async_result[1] = True
-                    #self.end_count.value += 1
-                    #print(result2.get())
-                    #self.info_datas.append(result2.get())
-                
-                    
-            #self.info_datas_writing()
-            #p.apply_async(self.info_datas_writing)
-            self.search_sum = self.search.row_counter.value
-            #print("scrap_index:" + str(scraped_index))
-            #print("ready_index" + str(readyed_index))
-            #print("ready : " + str(readyed_row))
+
             if future.ready():
                 future.get()
-                self.search_sum = self.search.row_counter
+                self.search_sum = self.search.row_counter.value
                 search_flg = False
 
             if (search_flg == False and 
                 scrap_flg == True and 
-                self.search_sum == self.end_count):
+                self.search_sum == self.end_count.value):
                 scrap_flg = False
                 self.info_datas_writing()
                 print("break!!")
