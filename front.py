@@ -5,8 +5,9 @@ import traceback
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException, WebDriverException
 import sys
-#from concurrent.futures import ThreadPoolExecutor as TPE
+from concurrent.futures import ProcessPoolExecutor as Executer 
 import threading as th
+#from multiprocessing import Pool
 import time
 
 
@@ -62,7 +63,7 @@ class Windows:
 
     def display(self):
         self.win = sig.Window("HotPepperBeautyスクレイピングツール",
-                              self.layout(), icon="icon2.ico")
+                              self.layout(), icon="e6832bee44cfe3a3844f0a2587ee4bc4_xxo.ico")
         #self.sub_win = sig.Window("抽出実行", self.pop_layout(), icon="icon2.ico")
         running = False
         comp_flg = False
@@ -90,36 +91,16 @@ class Windows:
                     area_list = self.value['pref_name'].split(",")
                     job = Job(self.value['path'], area_list,
                               self.value['store_class'])
-                    th1 = th.Thread(target=job.run, daemon=True)
-                    th1.start()
+                    job_thread = th.Thread(target=job.run, daemon=True)
+                    job_thread.start()
                     running = True
                     while running:
-
-                        if job.url_scrap_flg:
-                            #sig.popup_no_buttons('掲載URLを抽出処理中です。ブラウザの動作を止めないでください。', non_blocking=True, auto_close=True)
-                            page_cnt = job.scrap.page_count
-                            prog_count = job.scrap.counter
-                            try:
-                                cancel = sig.one_line_progress_meter("処理中です...", prog_count, page_cnt, 'prog', "掲載URLを抽出しています。しばらくお待ちください。",orientation='h')
-
-                            except TypeError:
-                                cancel = sig.OneLineProgressMeter(
-                                    "処理中です...", 0, 1, 'prog', "現在準備中です。")
-                            
-                            if cancel == False and job.detati_flg == True and job.end_flg == False:
-                                print("detati in ")
-                                sig.popup_no_buttons('中止処理中です...。', non_blocking=True, auto_close=True)
-                                detati = True
-                                running = False
-                                break
-                            
-                        #cancel = sig.popup_cancel('抽出処理中です。これには数時間かかることがあります。\n中断するには’Cancelled’ボタンを押してください。')
                         if job.info_scrap_flg:
                             try:   
-                                cancel = sig.one_line_progress_meter("処理中です...", job.scrap_cnt, job.scrap_sum, 'prog', "店舗情報を抽出しています。\nこれには数時間かかることがあります。", orientation='h',)
+                                cancel = sig.one_line_progress_meter("処理中です...", job.scrap_cnt, job.scrap.sheet_row, 'prog', "店舗情報を抽出しています。\nこれには数時間かかることがあります。", orientation='h',)
                             except (TypeError, RuntimeError):
                                 cancel = sig.OneLineProgressMeter(
-                                    "処理中です...", 0, 1, 'prog', "現在準備中です。")
+                                    "処9理中です...", 0, 1, 'prog', "現在準備中です。")
                                 pass
 
                             if cancel == False and job.detati_flg == True and job.end_flg == False:
@@ -240,35 +221,97 @@ class Job():
         self.area_list = area_list
         self.junle = junle
         self.scrap = Scraping(path)
+        self.sub_scrap = Scraping(path, use_sub_driver=False) 
         self.scrap.init_work_book()
         self.url_scrap_flg = False
         self.info_scrap_flg = False
-        self.scrap_cnt = 0
-        self.scrap_sum = 1
+        self.scrap_cnt = 0 #info_scrap count
+        self.scrap_sum = 1 #sum count of scraiping
         self.check_flg = False
         self.end_flg = False
         self.detati_flg = False
         self.exception_flg = False
 
-    def run(self):
-        # url scraiping
-        startTime = time.time()
-        print("hre")
-        self.url_scrap_flg = True
-        if self.junle == 'すべてのジャンル':
-            self.detati_flg = True
-            self.scrap.all_scrap(self.area_list)
-        else:
-            for area in self.area_list:
-                self.scrap.counter = 0
-                self.detati_flg = True
+    def __search(self):
+        for area in self.area_list:
+            if self.junle == 'すべてのジャンル':
+                junle_list = [
+                    "ヘアサロン",
+                    "ネイル・まつげサロン",
+                    "リラクサロン",
+                    "エステサロン",
+                    ]
+                for menu in junle_list: 
+                    self.scrap.url_scrap(area, menu)
+            else:
                 self.scrap.url_scrap(area, self.junle)
-        # info scraiping
-        self.detati_flg = False
-        self.url_scrap_flg = False
-        self.info_scrap_flg = True
+
+    def run(self):
+        self.url_scrap_flg = True
         self.detati_flg = True
-        self.scrap_sum = self.scrap.sheet.max_row
+        thread = th.Thread(target=self.__search)
+        thread.start()
+        #InfoScraping Process
+        scraped_row = 2 #初期値2行目
+        readyed_row = 1 #初期値1行目
+        self.info_scrap_flg = True
+        
+        while self.info_scrap_flg:
+            if thread.is_alive() != True and readyed_row != 1 and self.url_scrap_flg == True:
+                #url_scrapが終了したとき
+                self.scrap.sub_driver.quit()
+                self.url_scrap_flg = False
+            
+            if self.url_scrap_flg == False and scraped_row == readyed_row+1 and self.info_scrap_flg == True:
+                #全抽出処理終了判定
+                print("break!")
+                self.info_scrap_flg = False
+                break
+
+            for row in range(scraped_row, readyed_row, 2):
+               
+                if (self.scrap.sheet.cell(row=row, column=8).value not in ('', None)   #URL抽出済
+                    and self.scrap.sheet.cell(row=row, column=2).value == None):#info_scrap未実施                     
+                    print("scrap:" + str(row))
+                    if self.scrap_cnt % 100 == 0:
+                        self.scrap.restart(row)
+                        self.scrap.restart(row+1)
+                    print("scrap:" + str(row))
+                    id1 = th.Thread(target=self.scrap.loadHtml, args=([row]))
+                    id2 = th.Thread(target=self.sub_scrap.loadHtml, args=([row+1]))
+                    id1.start()
+                    id2.start()
+                    id1.join()
+                    id2.join()
+                    self.scrap_cnt += 2 
+                elif self.scrap.sheet.cell(row=row, column=8).value == '' : 
+                    #（予防策）info_scrapで対象都道府県でないときに生成される空行（空文字）に当たった場合。
+                    pass
+                elif self.scrap.sheet.cell(row=row, column=8).value == None:#まだ未検索
+                    self.scrap.book.save(self.path)
+                    scraped_row = row
+                    break #更新のためbreak
+            
+
+            
+            scraped_row = readyed_row+1
+            readyed_row = self.scrap.sheet_row #最大読み込み行数の更新
+            print("row is renewd")
+       
+        #save data file
+        self.detati_flg = False
+        #self.scrap.main_driver.quit()
+        self.scrap.driver.quit()
+        self.scrap.book.save(self.scrap.path)
+        # finishing scrap
+        self.check_flg = True
+        while scrap.check(self.path) == False:
+            scrap.apper_adjst(self.path)
+        print("OK")
+        self.check_flg = False
+        self.end_flg = True
+
+    """
         for r in range(2, self.scrap.sheet.max_row+1):
             try:
                 if self.scrap_cnt % 100 == 0:
@@ -289,23 +332,25 @@ class Job():
         self.scrap.driver.quit()
         self.scrap.book.save(self.scrap.path)
         self.info_scrap_flg = False
-        
-        # finishing scrap
-        self.check_flg = True
-        while scrap.check(self.path) == False:
-            scrap.apper_adjst(self.path)
-        print("OK")
-        self.check_flg = False
-        self.end_flg = True
-        endTime = time.time()-startTime
-        print("Total Elapsed Time:" + str(endTime) + "[sec]")
+    """
 
-
+    def retry(self):
+        """
+        Scrapingが失敗したとき（自動再起動でも）手動で再スクレイピングする。
+        branch:dev_retry_scraping
+        """
     def cancel(self):
-        self.scrap.book.save(self.path)
-        self.scrap.driver.quit()
+        try:
+            self.scrap.book.save(self.path)
+            self.scrap.driver.quit()
+            self.scrap.sub_driver.quit()
+        except:
+            pass
 
 
 if __name__ == '__main__':
+    startTime = time.time()
     main_win = Windows()
     main_win.display()
+    endTime = time.time() - startTime
+    print("Total Elapsed Time:" + str(endTime) + "[sec]")

@@ -1,6 +1,7 @@
 Win_x64_857997_chrome-win
 __pycache__
 *.xlsx
+chromedriver_win32
 chromedriver_win32/chromedriver.exe
 chrome-win
 build
@@ -9,7 +10,6 @@ dist
 *.zip
 binarys
 product
-simple_loading_icon_gif
-animationGifs
 *.png
 test.py
+.venv
