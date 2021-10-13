@@ -471,11 +471,11 @@ class Implementation():
         #self.driver_list = self.manager.list()
         self.search_sum = 1
         self.writed_index = 0 #結果格納リストの書き込み済みindex数
-        self.book_index = 1 #ワークシートへの書き込み済み行数。
+        self.book_index = 2 #ワークシートへの書き込み済み行数。
         self.list1 = []#リクエストURLの格納用
         self.list2 = []
         self.scraped_url_index = 0 #リクエスト済みのURLリストのindex数
-    
+        self.p = Pool()
 
     def call_prog_value(self):
         return self.end_count.value, self.search_sum
@@ -487,22 +487,25 @@ class Implementation():
     #scrap_url_list = manager.list()
     #executer = ProcessPoolExecutor(max_workers=None)
     #futures = executer.submit(test.url_scrap, '高知県', 'ヘアサロン')
-        p = Pool()
         if self.junle == 'すべてのジャンル':
-            future = p.apply_async(self.search.all_scrap, args=([self.area_list]))
+            future = self.p.apply_async(self.search.all_scrap, args=([self.area_list]))
         else:
-            future = p.apply_async(self.search.search, args=([self.area_list, self.junle]))
+            future = self.p.apply_async(self.search.search, args=([self.area_list, self.junle]))
 
         scrap_flg = True
         search_flg = True
-        end_index = 0
+    
         while scrap_flg:
             self.search_sum = self.search.row_counter.value#表示更新用
             #２つのdriverで並列にスクレイピングするため、共有メモリのリストから個別に分けてdataを読み込む。
             if len(self.scrap_url_list) > 0:
-                self.create_url_data_list()    
-            result1 = p.apply_async(self.scrap2.loadHtml, args=([self.list1,]))
-            result2 = p.apply_async(self.scrap.loadHtml, args=([self.list2,]))
+                self.create_url_data_list()
+            if len(self.list1) > 0:
+                result1 = self.p.apply_async(self.scrap2.loadHtml, args=([self.list1.pop(0),]))
+            if len(self.list2) > 0:
+                result2 = self.p.apply_async(self.scrap.loadHtml, args=([self.list2.pop(0),]))
+            
+                
             doing = True
             async_result = [False, False]
             while doing:
@@ -535,12 +538,12 @@ class Implementation():
             #print("ready : " + str(readyed_row))
             if future.ready():
                 future.get()
-                end_index = len(self.scrap_url_list)
+                self.search_sum = self.search.row_counter
                 search_flg = False
 
             if (search_flg == False and 
                 scrap_flg == True and 
-                end_index == self.end_count):
+                self.search_sum == self.end_count):
                 scrap_flg = False
                 self.info_datas_writing()
                 print("break!!")
@@ -548,14 +551,22 @@ class Implementation():
                 break
 
     def create_url_data_list(self):
-        addDataLength = len(self.scrap_url_list)
+        addDataLength = len(self.scrap_url_list) #呼び出し時点での大きさを取得
         print("now scrap end index :" + str(self.scraped_url_index))
-        for i in range(self.scraped_url_index, addDataLength):
+        for i in range(0, addDataLength): #その時点での大きさまで各配列へ格納する。
             if i % 2 == 0:
-                self.list1.append(self.scrap_url_list[i])
+                self.list1.append(self.scrap_url_list.pop(0))
             else:
-                self.list2.append(self.scrap_url_list[i])
-        self.scraped_url_index += addDataLength-1
+                self.list2.append(self.scrap_url_list.pop(0))
+       
+    def cancel(self):
+        self.p.terminate()
+        self.info_datas_writing()
+        self.writeBook.book.save(self.writeBook.path)
+        while check(self.writeBook.path) == False:
+            apper_adjst(self.writeBook.path)
+        print("OK")
+
 
     def info_datas_writing(self):
         """
@@ -564,14 +575,14 @@ class Implementation():
         print("called!")
         length = len(self.info_datas)
         #print("write_data_len : " + str(length))
-        for i in range(self.writed_index, length):
+        for i in range(0, length):
             #print(self.info_datas.empty())
             #print(self.info_datas[0])
             #data = self.info_datas[i]
             #print(data)
-            self.writeBook.wirte_data(self.info_datas[i], self.book_index)
+            self.writeBook.wirte_data(self.info_datas.pop(0), self.book_index)
                     #self.end_count += 1
-            self.writed_index += 1
+            #self.writed_index += 1
             self.book_index += 1
         self.writeBook.book.save(self.writeBook.path)
 
