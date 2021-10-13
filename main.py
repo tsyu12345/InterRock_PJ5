@@ -1,5 +1,6 @@
-from calendar import THURSDAY
-from concurrent.futures.process import ProcessPoolExecutor
+#from calendar import THURSDAY
+#from concurrent.futures.process import ProcessPoolExecutor
+from multiprocessing import freeze_support
 from scraping import Implementation, check, apper_adjst
 import PySimpleGUI as sig
 import traceback
@@ -264,4 +265,5 @@ def main():
     sys.exit()
 
 if __name__ == "__main__":
+    freeze_support()
     main()
