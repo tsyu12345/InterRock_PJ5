@@ -181,7 +181,6 @@ class ScrapingInfomation(ScrapingURL):
         #conunter  
         driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
         wait = WebDriverWait(driver, 180)
-        parent_data_list = []
         load_counter = 0
         for url_data in store_url_data:
             
@@ -210,6 +209,7 @@ class ScrapingInfomation(ScrapingURL):
             data_list:list = self.__extraction(html, url_data)
             self.info_datas.append(data_list)
             self.end_count.value += 1
+            load_counter += 1
         driver.quit()
         
 

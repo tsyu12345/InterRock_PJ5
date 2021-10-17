@@ -1,11 +1,11 @@
-import time
+from selenium import webdriver
 
-class Test():
-    def __init__(self, id):
-        self.id = id 
-    
-    def timeResume(self, second):
-        print("start" + str(self.id))
-        time.sleep(second)
-        print("end" + str(self.id))
-    
+def catch_driver(driver:webdriver):
+    driver.get('https://www.google.com/?hl=ja')
+
+if __name__ == '__main__':
+    print("start chrome driver...")
+    driver = webdriver.Chrome(executable_path='chromedriver_win32/chromedriver.exe')
+    catch_driver(driver=driver)
+
+
