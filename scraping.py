@@ -12,6 +12,7 @@ import openpyxl as px
 from openpyxl.styles import PatternFill
 from bs4 import BeautifulSoup as bs
 from multiprocessing import Pool, Manager
+from urllib3.exceptions import MaxRetryError
 #from concurrent.futures import ProcessPoolExecutor
 import threading as th
 import time
@@ -57,7 +58,6 @@ class ScrapingURL(object):
         ]
         for area in area_list:
             for junle in class_menu:
-                self.counter = 0
                 self.__url_scrap(area, junle)
             print(area + "search complete.")
 
@@ -85,7 +85,6 @@ class ScrapingURL(object):
         for i in range(int(pages)):
             if i % 100 == 0 and i > 0:
                 cur_url = self.sub_driver.current_url
-                self.book.save(self.path)
                 self.sub_driver.quit()
                 time.sleep(5)
                 self.sub_driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
@@ -190,16 +189,16 @@ class ScrapingInfomation(ScrapingURL):
                 time.sleep(10)
                 driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
                 wait = WebDriverWait(driver, 180)
-                 
             try:
                 url = url_data[2] #[[junle, area, url], [],....]の想定
+                #MAXRetryError↓ load_counter = 2049
                 driver.get(url)
-            except (WebDriverException, TimeoutException):
-                self.book.save(self.path)
+            except (WebDriverException, TimeoutException, MaxRetryError):
                 driver.delete_all_cookies()
                 driver.quit()
                 time.sleep(30)#強制30秒待機
                 wait = WebDriverWait(driver, 180)
+                driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
                 driver.get(url)
                 #issues: urlに''が渡されるとInvaild argument Exceptionが発生し処理が止まる。
             else:
