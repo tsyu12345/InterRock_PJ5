@@ -530,7 +530,7 @@ class Implementation():
 
             if (search_flg == False and 
                 scrap_flg == True and 
-                self.search_sum == self.end_count.value):
+                (len(self.scrap_url_list) == 0 and len(self.list1) == 0 and len(self.list2)== 0)):
                 scrap_flg = False
                 self.info_datas_writing()
                 print("break!!")
