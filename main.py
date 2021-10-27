@@ -221,7 +221,7 @@ def main():
                         if counter >= sum:
                             counter = sum - 1
                         try:   
-                            cancel = sig.one_line_progress_meter("処理中です...", counter-1, sum, "店舗情報を抽出しています。\nこれには数時間かかることがあります。", key='OK for 2 meter',orientation='h',)
+                            cancel = sig.one_line_progress_meter("処理中です...", counter-1, sum, 'prog', "店舗情報を抽出しています。\nこれには数時間かかることがあります。", orientation='h')
                         except (TypeError, RuntimeError):
                             cancel = sig.OneLineProgressMeter(
                                 "処9理中です...", 0, 1, 'prog', "現在準備中です。")
