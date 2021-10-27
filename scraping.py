@@ -206,7 +206,10 @@ class ScrapingInfomation(ScrapingURL):
             wait.until(EC.visibility_of_all_elements_located)
             html = driver.page_source
             data_list:list = self.__extraction(html, url_data)
-            self.info_datas.append(data_list)
+            if data_list != []:
+                self.info_datas.append(data_list)
+            else:
+                pass
             self.end_count.value += 1
             load_counter += 1
         driver.quit()
