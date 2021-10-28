@@ -553,9 +553,7 @@ class Implementation():
         self.p.terminate()
         self.info_datas_writing()
         self.writeBook.book.save(self.writeBook.path)
-        while check(self.writeBook.path) == False:
-            apper_adjst(self.writeBook.path)
-        print("OK")
+        
 
 
     def info_datas_writing(self):

@@ -76,9 +76,7 @@ class Job():
 
         # finishing scrap
         self.check_flg = True
-        while check(self.path) == False:
-            apper_adjst(self.path)
-        print("OK")
+        
         self.check_flg = False
         self.end_flg = True
 
@@ -97,9 +95,7 @@ class Job():
         except:
             pass
         self.check_flg = True
-        while check(self.path) == False:
-            apper_adjst(self.path)
-        print("OK")
+        
         self.check_flg = False
         self.end_flg = True
 
