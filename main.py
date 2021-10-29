@@ -73,11 +73,6 @@ class Job():
         self.info_scrap_flg = True
         self.scrap.run()
         self.info_scrap_flg = False
-
-        # finishing scrap
-        self.check_flg = True
-        
-        self.check_flg = False
         self.end_flg = True
 
 
@@ -217,7 +212,7 @@ def main():
                         if counter >= sum:
                             counter = sum - 1
                         try:   
-                            cancel = sig.one_line_progress_meter("処理中です...", counter-1, sum, 'prog', "店舗情報を抽出しています。\nこれには数時間かかることがあります。", orientation='h')
+                            cancel = sig.one_line_progress_meter("処理中です...", counter, sum, 'prog', "店舗情報を抽出しています。\nこれには数時間かかることがあります。", orientation='h')
                         except (TypeError, RuntimeError):
                             cancel = sig.OneLineProgressMeter(
                                 "処9理中です...", 0, 1, 'prog', "現在準備中です。")
@@ -236,13 +231,11 @@ def main():
                         if job.exception_flg:
                             sig.popup_auto_close('読み込みがタイムアウトしました。120秒後に自動で再起動します。', keep_on_top=True)
                     
-                    if job.check_flg:
-                        while job.end_flg == False:
-                            sig.popup_animated('animationGifs/images/icon_loader_f_ww_01_s1.gif',message="抽出データの確認を行っています。\nあと少しで完了します。")
-                            comp_flg = False
-                        comp_flg = True
+                    if job.end_flg:
+                        print('main loop break')
                         running = False
                         break
+                    
         
         if comp_flg:
             sig.popup('お疲れ様でした。抽出完了です。保存先を確認してください\n' + value['path'], keep_on_top=True)
