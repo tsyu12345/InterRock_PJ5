@@ -234,6 +234,7 @@ def main():
                     if job.end_flg:
                         print('main loop break')
                         running = False
+                        comp_flg = True
                         break
                     
         
