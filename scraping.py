@@ -29,7 +29,7 @@ class ScrapingURL(object):
         self.options = webdriver.ChromeOptions()
         self.options.add_argument("start-maximized")
         self.options.add_argument("enable-automation")
-        self.options.add_argument("--headless")
+        #self.options.add_argument("--headless")
         self.options.add_argument("--no-sandbox")
         self.options.add_argument("--disable-infobars")
         self.options.add_argument('--disable-extensions')
@@ -160,6 +160,8 @@ class ScrapingInfomation(ScrapingURL):
         #self.thread_local = th.local()
         self.end_count = end_count
         self.info_datas = info_datas #結果格納用リスト
+        self.driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
+        self.driver.quit()
         self.table_menu = {
             12:'お店のホームページ',
             18:'アクセス・道案内',
@@ -178,33 +180,33 @@ class ScrapingInfomation(ScrapingURL):
     
     def loadHtml(self, store_url_data:list,):
         #conunter  
-        driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
-        wait = WebDriverWait(driver, 180)
+        self.driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
+        wait = WebDriverWait(self.driver, 180)
         load_counter = 0
         for url_data in store_url_data:
             
             if load_counter % 100 == 0 and load_counter != 0: #メモリ対策でブラウザを再起動。
-                driver.delete_all_cookies()
-                driver.quit()
+                self.driver.delete_all_cookies()
+                self.driver.quit()
                 time.sleep(10)
-                driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
-                wait = WebDriverWait(driver, 180)
+                self.driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
+                wait = WebDriverWait(self.driver, 180)
             try:
                 url = url_data[2] #[[junle, area, url], [],....]の想定
                 #MAXRetryError↓ load_counter = 2049
-                driver.get(url)
+                self.driver.get(url)
             except (WebDriverException, TimeoutException, MaxRetryError):
-                driver.delete_all_cookies()
-                driver.quit()
+                self.driver.delete_all_cookies()
+                self.driver.quit()
                 time.sleep(30)#強制30秒待機
-                wait = WebDriverWait(driver, 180)
-                driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
-                driver.get(url)
+                wait = WebDriverWait(self.driver, 180)
+                self.driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
+                self.driver.get(url)
                 #issues: urlに''が渡されるとInvaild argument Exceptionが発生し処理が止まる。
             else:
                 pass
             wait.until(EC.visibility_of_all_elements_located)
-            html = driver.page_source
+            html = self.driver.page_source
             data_list:list = self.__extraction(html, url_data)
             if data_list != []:
                 self.info_datas.append(data_list)
@@ -212,7 +214,7 @@ class ScrapingInfomation(ScrapingURL):
                 pass
             self.end_count.value += 1
             load_counter += 1
-        driver.quit()
+        self.driver.quit()
         
 
     def __create_data_list(self, data_length):
@@ -478,6 +480,7 @@ class Implementation():
         self.list2 = []
         self.scraped_url_index = 0 #リクエスト済みのURLリストのindex数
         self.p = Pool()
+        self.search_flg = False
 
     def call_prog_value(self):
         return self.end_count.value, self.search_sum
@@ -495,7 +498,7 @@ class Implementation():
             future = self.p.apply_async(self.search.search, args=([self.area_list, self.junle]))
 
         scrap_flg = True
-        search_flg = True
+        self.search_flg = True
     
         while scrap_flg:
             self.search_sum = self.search.row_counter.value#表示更新用
@@ -529,9 +532,9 @@ class Implementation():
             if future.ready():
                 future.get()
                 self.search_sum = self.search.row_counter.value
-                search_flg = False
+                self.search_flg = False
 
-            if (search_flg == False and 
+            if (self.search_flg == False and 
                 scrap_flg == True and 
                 (len(self.scrap_url_list) == 0 and len(self.list1) == 0 and len(self.list2)== 0)):
                 scrap_flg = False
@@ -550,11 +553,16 @@ class Implementation():
                 self.list2.append(self.scrap_url_list.pop(0))
        
     def cancel(self):
-        self.p.terminate()
-        self.info_datas_writing()
-        self.writeBook.book.save(self.writeBook.path)
-        
-
+        if self.search_flg:
+            self.search.sub_driver.quit()
+        self.scrap.driver.quit()
+        self.scrap2.driver.quit()
+        try:
+            self.info_datas_writing()
+            self.writeBook.book.save(self.writeBook.path)
+            self.p.terminate()
+        except Exception:
+            pass
 
     def info_datas_writing(self):
         """
@@ -582,30 +590,7 @@ def resource_path(relative_path):#バイナリフィルのパスを提供
         base_path = os.path.dirname(__file__)
     return os.path.join(base_path, relative_path)
 
-def apper_adjst(path):#空白行を削除する
-    book = px.load_workbook(path)
-    sheet = book.worksheets[0]
-    for r in range(2, sheet.max_row+1):
-        print("check" + str(r))
-        #sig.OneLineProgressMeter('内容チェック中...', r-1, sheet.max_row-1, args="データの内容をチェック中...です。")
-        if sheet.cell(row=r, column=1).value == "" or sheet.cell(row=r, column=1).value == None:
-            sheet.delete_rows(r)
-    book.save(path)
 
-def check(path):
-    book = px.load_workbook(path)
-    sheet = book.worksheets[0]
-    for r in range(2, sheet.max_row+1):
-        print("check" + str(r))
-        #sig.OneLineProgressMeter('内容チェック中...', r-1, sheet.max_row-1)
-        if sheet.cell(row=r, column=2).value in ("", " ", None):
-            fill =  PatternFill(patternType='solid', fgColor='ffff00')
-            sheet['B'+str(r)].fill = fill
-            sheet.cell(row=r, column=2, value='抽出不可')
-        if sheet.cell(row=r, column=1).value == "" or sheet.cell(row=r, column=1).value == None:
-            return False
-    book.save(path)
-    return True
     
 if __name__ == '__main__':
     test = Implementation('concurrent-test.xlsx', ['高知県','徳島県'], 'ヘアサロン')

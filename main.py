@@ -1,7 +1,6 @@
-#from calendar import THURSDAY
 #from concurrent.futures.process import ProcessPoolExecutor
 from multiprocessing import freeze_support
-from scraping import Implementation, check, apper_adjst
+from scraping import Implementation
 import PySimpleGUI as sig
 import traceback
 from selenium.common.exceptions import TimeoutException, WebDriverException
@@ -84,16 +83,8 @@ class Job():
         """
 
     def cancel(self):
-        try:
-           self.scrap.writeBook.book.save(self.path)
-           self.scrap.search.sub_driver.quit()
-        except:
-            pass
-        self.check_flg = True
-        
-        self.check_flg = False
+        self.scrap.cancel()
         self.end_flg = True
-
 
 def menu_list():
     """
@@ -221,7 +212,7 @@ def main():
                         if cancel == False and job.end_flg == False:
                             print("detati in ")
                             detati = True
-                            
+                            job.cancel()
                             running = False
                             break
 
