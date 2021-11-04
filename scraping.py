@@ -1,9 +1,9 @@
-from multiprocessing.pool import ApplyResult
-import queue
-from typing import Tuple
+#from multiprocessing.pool import ApplyResult
+#import queue
+#from typing import Tuple
 from selenium import webdriver
 from selenium.common.exceptions import InvalidArgumentException, InvalidSessionIdException, InvalidSwitchToTargetException, NoSuchElementException, TimeoutException, WebDriverException
-from selenium.webdriver.chrome.webdriver import WebDriver
+#from selenium.webdriver.chrome.webdriver import WebDriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
@@ -14,13 +14,14 @@ from bs4 import BeautifulSoup as bs
 from multiprocessing import Pool, Manager
 from urllib3.exceptions import MaxRetryError
 #from concurrent.futures import ProcessPoolExecutor
-import threading as th
+#import threading as th
 import time
 import datetime
 import re
 import requests as rq
 import sys
 import os
+import subprocess
 
 class ScrapingURL(object):
     def __init__(self, path, row_counter, sync_data_list):
@@ -160,8 +161,6 @@ class ScrapingInfomation(ScrapingURL):
         #self.thread_local = th.local()
         self.end_count = end_count
         self.info_datas = info_datas #結果格納用リスト
-        self.driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
-        self.driver.quit()
         self.table_menu = {
             12:'お店のホームページ',
             18:'アクセス・道案内',
@@ -180,33 +179,33 @@ class ScrapingInfomation(ScrapingURL):
     
     def loadHtml(self, store_url_data:list,):
         #conunter  
-        self.driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
-        wait = WebDriverWait(self.driver, 180)
+        driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
+        wait = WebDriverWait(driver, 180)
         load_counter = 0
         for url_data in store_url_data:
             
             if load_counter % 100 == 0 and load_counter != 0: #メモリ対策でブラウザを再起動。
-                self.driver.delete_all_cookies()
-                self.driver.quit()
+                driver.delete_all_cookies()
+                driver.quit()
                 time.sleep(10)
-                self.driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
-                wait = WebDriverWait(self.driver, 180)
+                driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
+                wait = WebDriverWait(driver, 180)
             try:
                 url = url_data[2] #[[junle, area, url], [],....]の想定
                 #MAXRetryError↓ load_counter = 2049
-                self.driver.get(url)
+                driver.get(url)
             except (WebDriverException, TimeoutException, MaxRetryError):
-                self.driver.delete_all_cookies()
-                self.driver.quit()
+                driver.delete_all_cookies()
+                driver.quit()
                 time.sleep(30)#強制30秒待機
-                wait = WebDriverWait(self.driver, 180)
-                self.driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
-                self.driver.get(url)
+                wait = WebDriverWait(driver, 180)
+                driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
+                driver.get(url)
                 #issues: urlに''が渡されるとInvaild argument Exceptionが発生し処理が止まる。
             else:
                 pass
             wait.until(EC.visibility_of_all_elements_located)
-            html = self.driver.page_source
+            html = driver.page_source
             data_list:list = self.__extraction(html, url_data)
             if data_list != []:
                 self.info_datas.append(data_list)
@@ -214,7 +213,7 @@ class ScrapingInfomation(ScrapingURL):
                 pass
             self.end_count.value += 1
             load_counter += 1
-        self.driver.quit()
+        driver.quit()
         
 
     def __create_data_list(self, data_length):
@@ -470,9 +469,9 @@ class Implementation():
         self.scrap2 = ScrapingInfomation(path, self.max_row_counter, self.scrap_url_list, self.end_count, self.info_datas)
         self.writeBook = WriteWorkBook(path, self.end_count,)
         self.writeBook.init_work_book()
-        #self.driver1 = webdriver.Chrome(executable_path=self.scrap.driver_path, options=self.scrap.options)
-        #self.driver2 = webdriver.Chrome(executable_path=self.scrap.driver_path, options=self.scrap.options)
-        #self.driver_list = self.manager.list()
+        #driver1 = webdriver.Chrome(executable_path=self.scrap.driver_path, options=self.scrap.options)
+        #driver2 = webdriver.Chrome(executable_path=self.scrap.driver_path, options=self.scrap.options)
+        #driver_list = self.manager.list()
         self.search_sum = 1
         self.writed_index = 0 #結果格納リストの書き込み済みindex数
         self.book_index = 2 #ワークシートへの書き込み済み行数。
@@ -553,10 +552,6 @@ class Implementation():
                 self.list2.append(self.scrap_url_list.pop(0))
        
     def cancel(self):
-        if self.search_flg:
-            self.search.sub_driver.quit()
-        self.scrap.driver.quit()
-        self.scrap2.driver.quit()
         try:
             self.info_datas_writing()
             self.writeBook.book.save(self.writeBook.path)

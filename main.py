@@ -1,5 +1,6 @@
 #from concurrent.futures.process import ProcessPoolExecutor
 from multiprocessing import freeze_support
+import subprocess
 from scraping import Implementation
 import PySimpleGUI as sig
 import traceback
@@ -84,6 +85,7 @@ class Job():
 
     def cancel(self):
         self.scrap.cancel()
+        subprocess.call("taskkill /im chrome.exe", shell=True)
         self.end_flg = True
 
 def menu_list():
