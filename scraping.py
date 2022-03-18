@@ -23,6 +23,8 @@ import sys
 import os
 import subprocess
 
+#TODO:抽出タグのセレクタを更新する。
+
 class ScrapingURL(object):
     def __init__(self, path, row_counter, sync_data_list):
         self.path = path
