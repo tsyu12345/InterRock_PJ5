@@ -76,11 +76,14 @@ class ScrapingURL(object):
         self.sub_driver.get("https://beauty.hotpepper.jp/top/")  # top page
         sr_class = self.sub_driver.find_element_by_link_text(store_junle)#ジャンル選択
         sr_class.click()
-        wait.until(EC.visibility_of_element_located((By.ID, "freeWordSearch1")))
-        search = self.sub_driver.find_element_by_id('freeWordSearch1')
+        searchBoxDomId = "freeWordSearch1"
+        wait.until(EC.visibility_of_element_located((By.ID, searchBoxDomId)))
+        search = self.sub_driver.find_element_by_id(searchBoxDomId)
         search.send_keys(area + Keys.ENTER)
-        wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, "p.pa.bottom0.right0")))
-        result_pages = self.sub_driver.find_element_by_css_selector('p.pa.bottom0.right0').text
+        
+        result_page_dom_selector = "#mainContents > div.mT20.bgWhite > div.preListHead > div > p.pa.bottom0.right0"
+        wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, result_page_dom_selector)))
+        result_pages = self.sub_driver.find_element_by_css_selector(result_page_dom_selector).text
         page_num = re.split('[/ ]', result_pages)
         pages = re.sub(r"\D", "", page_num[1])
         print("pages : " + pages)
@@ -121,6 +124,8 @@ class ScrapingURL(object):
                 print(self.row_counter)
                 #self.book.save(self.path)
                 #Issue:↑で一時保存するとinfo_scrap()との衝突するのかPermissionErrorが発生する場合がある。
+                
+                #TODO:リトライ処理のfor文を書く
                 try:
                     pre_url = self.sub_driver.current_url
                     #pre_index = i
@@ -238,7 +243,7 @@ class ScrapingInfomation(ScrapingURL):
             'div.mT30 > table > tbody > tr > td')
         table_menu = soup.select(
             'div.mT30 > table > tbody > tr > th')
-          # 住所の抽出（少々処理があるため別で書き出す）
+        # 住所の抽出（少々処理があるため別で書き出す）
         pref_tf = True
         prefecture = ""
         for j, e in enumerate(table_menu):
@@ -263,12 +268,12 @@ class ScrapingInfomation(ScrapingURL):
                 break
         # 指定エリアでないとき、下記処理を行わない
         try:
-            store_name_tag = soup.select_one('p.detailTitle > a')
+            store_name_tag = soup.select_one('#mainContents > p.detailTitle > a')
             store_name = store_name_tag.get_text() if store_name_tag != None else None
             #store_name = store_name_tag.get_text()
             print("店名：" + store_name)
             st_name_kana_tag = soup.select_one(
-                'div > p.fs10.fgGray')
+                'div.sprtHeaderInner.pV10.pR10  > p.fs10.fgGray')
             st_name_kana = st_name_kana_tag.get_text() if st_name_kana_tag != None else None
             #st_name_kana = st_name_kana_tag.get_text()
             print("店名カナ：" + st_name_kana)
@@ -280,7 +285,7 @@ class ScrapingInfomation(ScrapingURL):
                 html_tel = respons_tel.text
                 soup_tel = bs(html_tel, 'lxml')
                 tel_num_tag = soup_tel.select_one(
-                    'table > tr > td')
+                    'table.wFull.bdCell.pCell10.mT15 > tr > td')
                 tel_num = tel_num_tag.get_text() if tel_num_tag != None else None
                 #tel_num = tel_num_tag.get_text()
                 tel_num = str(tel_num)
@@ -293,10 +298,10 @@ class ScrapingInfomation(ScrapingURL):
             head_img_tag = soup.select_one('div.slnHeaderSliderPhoto.jscViewerPhoto')    
             head_img_yn = "有" if head_img_tag != None else "無"
 
-            catch_copy_tag = soup.select_one('div > p > b > strong')
+            catch_copy_tag = soup.select_one('div.cFix > p.shopCatchCopy > b > strong')
             catch_copy = catch_copy_tag.get_text() if catch_copy_tag != None else None
             #catch_copy = catch_copy_tag.get_text()
-            pankuzu_tag = soup.select('#preContents > ol > li')
+            pankuzu_tag = soup.select('#preContents > ol.pankuzu.cFix > li')
             pankuzu = ""
             for pan in pankuzu_tag:
                 pankuzu += pan.get_text() if pan != None else ""
