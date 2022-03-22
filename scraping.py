@@ -256,6 +256,7 @@ class ScrapingInfomation(ScrapingURL):
                 prefecture = prefecture_search.group()  # 県名
                 print(prefecture)
                 if prefecture != store_url_data[1]:
+                    print("prefecture is not match" + store_url_data[1])
                     #self.url_list.remove(store_url_data)
                     return []
                     """
@@ -268,12 +269,12 @@ class ScrapingInfomation(ScrapingURL):
                 break
         # 指定エリアでないとき、下記処理を行わない
         try:
-            store_name_tag = soup.select_one('#mainContents > p.detailTitle > a')
+            store_name_tag = soup.select_one('#mainContents > div.detailHeader.cFix.pr > div > div.pL10.oh.hMin120 > div > p.detailTitle > a')
             store_name = store_name_tag.get_text() if store_name_tag != None else None
             #store_name = store_name_tag.get_text()
             print("店名：" + store_name)
             st_name_kana_tag = soup.select_one(
-                'div.sprtHeaderInner.pV10.pR10  > p.fs10.fgGray')
+                '#mainContents > div.detailHeader.cFix.pr > div > div.pL10.oh.hMin120 > div > p.fs10.fgGray')
             st_name_kana = st_name_kana_tag.get_text() if st_name_kana_tag != None else None
             #st_name_kana = st_name_kana_tag.get_text()
             print("店名カナ：" + st_name_kana)
@@ -332,6 +333,7 @@ class ScrapingInfomation(ScrapingURL):
                         data_list[row-1] = table_value[j].get_text()
                         break
         except:
+            print("EXTRACT Exception")
             pass
         return data_list
 
@@ -397,7 +399,7 @@ class ScrapingInfomation(ScrapingURL):
         hour = str(dt_now.hour)
         min = str(dt_now.minute)
         data_day = year + "," + month + day + "," + hour + min
-        print(data_day)
+        #print(data_day)
         return data_day
 
 
@@ -524,12 +526,12 @@ class Implementation():
                         self.info_datas_writing()
                         break
                     if result1.ready():
-                        print("result1 end")
+                        #print("result1 end")
                         async_result[0] = True
                         self.list1.clear()
                         
                     if result2.ready():
-                        print("result2 end")
+                        #print("result2 end")
                         async_result[1] = True
                         self.list2.clear()        
 
