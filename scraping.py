@@ -32,7 +32,7 @@ class ScrapingURL(object):
         self.options = webdriver.ChromeOptions()
         self.options.add_argument("start-maximized")
         self.options.add_argument("enable-automation")
-        self.options.add_argument("--headless")
+        #self.options.add_argument("--headless")
         self.options.add_argument("--no-sandbox")
         self.options.add_argument("--disable-infobars")
         self.options.add_argument('--disable-extensions')
@@ -81,8 +81,10 @@ class ScrapingURL(object):
         search = self.sub_driver.find_element_by_id(searchBoxDomId)
         search.send_keys(area + Keys.ENTER)
         
-        result_page_dom_selector = "#mainContents > div.mT20.bgWhite > div.preListHead > div > p.pa.bottom0.right0"
-        wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, result_page_dom_selector)))
+        result_page_dom_selector = "p.pa.bottom0.right0"
+        #FIXME:2022/03/23 @LackExtract:TimeOutExceptionが発生し処理が先に進まないのでtime.sleepで代用。
+        time.sleep(5)
+        #wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, result_page_dom_selector)))
         result_pages = self.sub_driver.find_element_by_css_selector(result_page_dom_selector).text
         page_num = re.split('[/ ]', result_pages)
         pages = re.sub(r"\D", "", page_num[1])
@@ -559,7 +561,7 @@ class Implementation():
                 self.list1.append(self.scrap_url_list.pop(0))
             else:
                 self.list2.append(self.scrap_url_list.pop(0))
-       
+    
     def cancel(self):
         try:
             self.info_datas_writing()
