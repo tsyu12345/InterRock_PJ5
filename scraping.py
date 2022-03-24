@@ -77,16 +77,30 @@ class ScrapingURL(object):
         sr_class = self.sub_driver.find_element_by_link_text(store_junle)#ジャンル選択
         sr_class.click()
         searchBoxDomId = "freeWordSearch1"
-        wait.until(EC.visibility_of_element_located((By.ID, searchBoxDomId)))
+        wait.until(EC.presence_of_element_located((By.ID, searchBoxDomId)))
         search = self.sub_driver.find_element_by_id(searchBoxDomId)
-        search.send_keys(area + Keys.ENTER)
+        search.send_keys(area)
         
-        result_page_dom_selector = "p.pa.bottom0.right0"
+        search_execute_btn = self.sub_driver.find_element_by_css_selector('input.searchButton.cS.sbmF.fgClear')
+        search_execute_btn.click()
+        
+        wait.until(EC.visibility_of_all_elements_located)
+        r_pages_text = ""
+        for i in range(2):
+            try:
+                result_page_dom_selector = "p.pa.bottom0.right0"
         #FIXME:2022/03/23 @LackExtract:TimeOutExceptionが発生し処理が先に進まないのでtime.sleepで代用。
-        time.sleep(5)
+        #time.sleep(5)
         #wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, result_page_dom_selector)))
-        result_pages = self.sub_driver.find_element_by_css_selector(result_page_dom_selector).text
-        page_num = re.split('[/ ]', result_pages)
+                wait.until(EC.visibility_of_all_elements_located)
+                result_pages = self.sub_driver.find_element_by_css_selector(result_page_dom_selector).text
+            except NoSuchElementException:
+                self.sub_driver.refresh()
+            else:
+                r_pages_text  = result_pages
+                break
+            
+        page_num = re.split('[/ ]', r_pages_text)
         pages = re.sub(r"\D", "", page_num[1])
         print("pages : " + pages)
         self.page_count = int(pages)
