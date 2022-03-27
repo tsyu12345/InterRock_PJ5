@@ -79,7 +79,12 @@ class ScrapingURL(object):
         searchBoxDomId = "freeWordSearch1"
         wait.until(EC.presence_of_element_located((By.ID, searchBoxDomId)))
         search = self.sub_driver.find_element_by_id(searchBoxDomId)
-        search.send_keys(area)
+        #FIXED:[hotfix/LackExtract]なぜかsend_keysがうまく働いていない気がする。inputの文字列が空のままであることを確認。
+        #search.send_keys(area)
+        #[hotfix/LackExtract]:send_keysで渡したした文字列が入力されない場合がある。
+        #下記で、JavaScriptを使って入力する。
+        javascript = "document.getElementById('freeWordSearch1').value = '" + area + "';"
+        self.sub_driver.execute_script(javascript)
         
         search_execute_btn = self.sub_driver.find_element_by_css_selector('input.searchButton.cS.sbmF.fgClear')
         search_execute_btn.click()
