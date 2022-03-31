@@ -32,7 +32,7 @@ class ScrapingURL(object):
         self.options = webdriver.ChromeOptions()
         self.options.add_argument("start-maximized")
         self.options.add_argument("enable-automation")
-        #self.options.add_argument("--headless")
+        self.options.add_argument("--headless")
         self.options.add_argument("--no-sandbox")
         self.options.add_argument("--disable-infobars")
         self.options.add_argument('--disable-extensions')
@@ -89,27 +89,20 @@ class ScrapingURL(object):
         search_execute_btn = self.sub_driver.find_element_by_css_selector('input.searchButton.cS.sbmF.fgClear')
         search_execute_btn.click()
         
-        wait.until(EC.visibility_of_all_elements_located)
-        r_pages_text = ""
-        for i in range(2):
-            try:
-                result_page_dom_selector = "p.pa.bottom0.right0"
-        #FIXME:2022/03/23 @LackExtract:TimeOutExceptionが発生し処理が先に進まないのでtime.sleepで代用。
-        #time.sleep(5)
-        #wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, result_page_dom_selector)))
-                wait.until(EC.visibility_of_all_elements_located)
-                result_pages = self.sub_driver.find_element_by_css_selector(result_page_dom_selector).text
-            except NoSuchElementException:
-                self.sub_driver.refresh()
-            else:
-                r_pages_text  = result_pages
-                break
-            
-        page_num = re.split('[/ ]', r_pages_text)
-        pages = re.sub(r"\D", "", page_num[1])
-        print("pages : " + pages)
-        self.page_count = int(pages)
-        for i in range(int(pages)):
+        # wait.until(EC.visibility_of_all_elements_located)
+        #ページ数タグのセレクタ辞書
+        selector_dict = {
+            "ヘアサロン":"#mainContents > div.mT20.bgWhite > div.preListHead > div > p.pa.bottom0.right0",
+            "ネイル・まつげサロン": "#mainContents > div.mT15 > div.preListHead > div > p.pa.bottom0.right0",
+            "リラクサロン": "#mainContents > div.mT15 > div.preListHead > div > p.pa.bottom0.right0",
+            "エステサロン": "#mainContents > div.mT15 > div.preListHead > div > p.pa.bottom0.right0"
+        }
+        wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, selector_dict[store_junle])))
+        
+        html = self.sub_driver.page_source
+        self.page_count = self.__get_page_count(html, selector_dict[store_junle])
+        
+        for i in range(self.page_count):
             if i % 100 == 0 and i > 0:
                 cur_url = self.sub_driver.current_url
                 self.sub_driver.quit()
@@ -174,7 +167,28 @@ class ScrapingURL(object):
         print("search complete")
         self.sub_driver.quit()
         #driver.close()
+        
+    def __get_page_count(self, html:str, selector:str)->int:
+        """_summary_
+        hotfix/LackExtract:店舗検索ページにて、検索ページ数のエレメントがvisibleなのにかかわらず、たまに抽出できない不具合あり。\n
+        その対応策で、ページ全体のHTMLをdriverからロードし、そのHTML変数からページ数の取得を試みる。
+        Args:
+            html (str): html文字列
 
+        Returns:
+            int: 結果のページ数
+        """
+        soup = bs(html, 'lxml')
+        #mainContents > div.mT20.bgWhite > div.preListHead > div > p.pa.bottom0.right0
+        counter_elm = soup.select_one(selector)
+        print(counter_elm)
+        counter_text:str = counter_elm.text if counter_elm is not None else ""
+        page_num = re.split('[/ ]', counter_text)
+        pages = re.sub(r"\D", "", page_num[1])
+        print("pages : " + pages)
+        return int(pages)
+        
+        
 class ScrapingInfomation(ScrapingURL):
     def __init__(self, path, row_counter, url_list_data, end_count, info_datas):
         """
