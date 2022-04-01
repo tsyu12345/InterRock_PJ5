@@ -21,7 +21,9 @@ import re
 import requests as rq
 import sys
 import os
-import subprocess
+
+from __future__ import annotations
+from selector_dict import SELECTOR
 
 #TODO:抽出タグのセレクタを更新する。
 
@@ -190,6 +192,17 @@ class ScrapingURL(object):
         
         
 class ScrapingInfomation(ScrapingURL):
+    
+    #[LackExtract]2022/04/01:抽出用のセレクターを辞書でまとめる。
+    #ジャンルごとに異なるので、データ形式は下記のとおりとする。
+    #{"項目名":{
+        # "ヘアサロン":"セレクター", 
+        # "ネイル・まつげサロン":"セレクター",
+        # "リラクサロン":"セレクター", 
+        # "エステサロン":"セレクター"
+        # }
+    # }
+    
     def __init__(self, path, row_counter, url_list_data, end_count, info_datas):
         """
         path : WorkSheetPath \n
@@ -269,15 +282,17 @@ class ScrapingInfomation(ScrapingURL):
         return data_list
 
     def __extraction(self, html, store_url_data):
+        #TODO:タグ文字列を辞書のキーに書き換える。
         """
         HTMLを受け取り、情報を抽出,結果のリストを返す。
         """
         data_list = self.__create_data_list(31)
         soup = bs(html, 'lxml')
+        
         table_value = soup.select(
-            'div.mT30 > table > tbody > tr > td')
+            SELECTOR['table_value'][store_url_data[0]])
         table_menu = soup.select(
-            'div.mT30 > table > tbody > tr > th')
+            SELECTOR['table_menu'][store_url_data[0]])
         # 住所の抽出（少々処理があるため別で書き出す）
         pref_tf = True
         prefecture = ""
@@ -304,12 +319,12 @@ class ScrapingInfomation(ScrapingURL):
                 break
         # 指定エリアでないとき、下記処理を行わない
         try:
-            store_name_tag = soup.select_one('#mainContents > div.detailHeader.cFix.pr > div > div.pL10.oh.hMin120 > div > p.detailTitle > a')
+            store_name_tag = soup.select_one(SELECTOR['store_name'][store_url_data[0]])
             store_name = store_name_tag.get_text() if store_name_tag != None else None
             #store_name = store_name_tag.get_text()
             print("店名：" + store_name)
             st_name_kana_tag = soup.select_one(
-                '#mainContents > div.detailHeader.cFix.pr > div > div.pL10.oh.hMin120 > div > p.fs10.fgGray')
+                SELECTOR['stname_kana'][store_url_data[0]])
             st_name_kana = st_name_kana_tag.get_text() if st_name_kana_tag != None else None
             #st_name_kana = st_name_kana_tag.get_text()
             print("店名カナ：" + st_name_kana)
@@ -321,7 +336,7 @@ class ScrapingInfomation(ScrapingURL):
                 html_tel = respons_tel.text
                 soup_tel = bs(html_tel, 'lxml')
                 tel_num_tag = soup_tel.select_one(
-                    'table.wFull.bdCell.pCell10.mT15 > tr > td')
+                    SELECTOR['tel'][store_url_data[0]])
                 tel_num = tel_num_tag.get_text() if tel_num_tag != None else None
                 #tel_num = tel_num_tag.get_text()
                 tel_num = str(tel_num)
@@ -331,20 +346,20 @@ class ScrapingInfomation(ScrapingURL):
                 tel_num = None
                 pass
                 # ヘッダー画像の有無
-            head_img_tag = soup.select_one('div.slnHeaderSliderPhoto.jscViewerPhoto')    
+            head_img_tag = soup.select_one(SELECTOR['header_img'][store_url_data[0]])    
             head_img_yn = "有" if head_img_tag != None else "無"
 
-            catch_copy_tag = soup.select_one('div.cFix > p.shopCatchCopy > b > strong')
+            catch_copy_tag = soup.select_one(SELECTOR['"catchcopy'][store_url_data[0]])
             catch_copy = catch_copy_tag.get_text() if catch_copy_tag != None else None
             #catch_copy = catch_copy_tag.get_text()
-            pankuzu_tag = soup.select('#preContents > ol.pankuzu.cFix > li')
+            pankuzu_tag = soup.select(SELECTOR['pankuzu'][store_url_data[0]])
             pankuzu = ""
             for pan in pankuzu_tag:
                 pankuzu += pan.get_text() if pan != None else ""
             print(pankuzu)
 
             slide_img_tag = soup.select(
-                'div.slnTopImgCarouselWrap.jscThumbWrap > ul > li')
+                SELECTOR['slide_img'][store_url_data[0]])
             slide_cnt = len(slide_img_tag)
         
         #append data_list
