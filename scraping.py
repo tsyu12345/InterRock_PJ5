@@ -193,15 +193,7 @@ class ScrapingURL(object):
         
 class ScrapingInfomation(ScrapingURL):
     
-    #[LackExtract]2022/04/01:抽出用のセレクターを辞書でまとめる。
-    #ジャンルごとに異なるので、データ形式は下記のとおりとする。
-    #{"項目名":{
-        # "ヘアサロン":"セレクター", 
-        # "ネイル・まつげサロン":"セレクター",
-        # "リラクサロン":"セレクター", 
-        # "エステサロン":"セレクター"
-        # }
-    # }
+
     
     def __init__(self, path, row_counter, url_list_data, end_count, info_datas):
         """
