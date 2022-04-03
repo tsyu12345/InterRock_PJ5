@@ -1,3 +1,7 @@
+
+from __future__ import annotations
+from selector_dict import SELECTOR
+
 #from multiprocessing.pool import ApplyResult
 #import queue
 #from typing import Tuple
@@ -22,8 +26,6 @@ import requests as rq
 import sys
 import os
 
-from __future__ import annotations
-from selector_dict import SELECTOR
 
 #TODO:抽出タグのセレクタを更新する。
 
