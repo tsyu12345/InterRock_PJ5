@@ -290,6 +290,7 @@ class ScrapingInfomation(ScrapingURL):
         # 住所の抽出（少々処理があるため別で書き出す）
         pref_tf = True
         prefecture = ""
+        municipality:str = ""
         for j, e in enumerate(table_menu):
             if e.get_text() == "住所":
                 all_address = table_value[j].get_text()
@@ -312,73 +313,72 @@ class ScrapingInfomation(ScrapingURL):
                 municipality = address_low[1]  # それ以降
                 break
         # 指定エリアでないとき、下記処理を行わない
-        try:
-            store_name_tag = soup.select_one(SELECTOR['store_name'][store_url_data[0]])
-            store_name = store_name_tag.get_text() if store_name_tag != None else None
-            #store_name = store_name_tag.get_text()
-            print("店名：" + store_name)
-            st_name_kana_tag = soup.select_one(
-                SELECTOR['stname_kana'][store_url_data[0]])
-            st_name_kana = st_name_kana_tag.get_text() if st_name_kana_tag != None else None
-            #st_name_kana = st_name_kana_tag.get_text()
-            print("店名カナ：" + st_name_kana)
-            try:
-                tel_tag = soup.select_one(
-                    'div.mT30 > table > tbody > tr > td > a')
-                tel_url = tel_tag.get('href')
-                respons_tel = rq.get(tel_url)
-                html_tel = respons_tel.text
-                soup_tel = bs(html_tel, 'lxml')
-                tel_num_tag = soup_tel.select_one(
-                    SELECTOR['tel'][store_url_data[0]])
-                tel_num = tel_num_tag.get_text() if tel_num_tag != None else None
-                #tel_num = tel_num_tag.get_text()
-                tel_num = str(tel_num)
-                tel_num = tel_num.replace(' ', "")
-                print("TEL : " + tel_num)
-            except:
-                tel_num = None
-                pass
-                # ヘッダー画像の有無
-            head_img_tag = soup.select_one(SELECTOR['header_img'][store_url_data[0]])    
-            head_img_yn = "有" if head_img_tag != None else "無"
-
-            catch_copy_tag = soup.select_one(SELECTOR['"catchcopy'][store_url_data[0]])
-            catch_copy = catch_copy_tag.get_text() if catch_copy_tag != None else None
-            #catch_copy = catch_copy_tag.get_text()
-            pankuzu_tag = soup.select(SELECTOR['pankuzu'][store_url_data[0]])
-            pankuzu = ""
-            for pan in pankuzu_tag:
-                pankuzu += pan.get_text() if pan != None else ""
-            print(pankuzu)
-
-            slide_img_tag = soup.select(
-                SELECTOR['slide_img'][store_url_data[0]])
-            slide_cnt = len(slide_img_tag)
         
-        #append data_list
-            data_list[0] = store_url_data[0]
-            data_list[1] = store_name
-            data_list[2] = st_name_kana
-            data_list[3] = tel_num
-            data_list[4] = jis_code
-            data_list[5] = prefecture
-            data_list[6] = municipality
-            data_list[7] = store_url_data[2]
-            data_list[8] = self.__scrap_day()
-            data_list[12] = pankuzu
-            data_list[15] = slide_cnt
-            data_list[16] = catch_copy
-            data_list[13] = head_img_yn 
-
-            for j in range(2, len(table_value)):
-                for row, menu in zip(self.table_menu.keys(), self.table_menu.values()):  
-                    if table_menu[j].get_text() == menu:
-                        data_list[row-1] = table_value[j].get_text()
-                        break
+        store_name_tag = soup.select_one(SELECTOR['store_name'][store_url_data[0]])
+        store_name = store_name_tag.get_text() if store_name_tag != None else None
+        #store_name = store_name_tag.get_text()
+        print("店名：" + store_name)
+        st_name_kana_tag = soup.select_one(
+            SELECTOR['stname_kana'][store_url_data[0]])
+        st_name_kana = st_name_kana_tag.get_text() if st_name_kana_tag != None else None
+        #st_name_kana = st_name_kana_tag.get_text()
+        print("店名カナ：" + st_name_kana)
+        try:
+            tel_tag = soup.select_one(
+                'div.mT30 > table > tbody > tr > td > a')
+            tel_url = tel_tag.get('href')
+            respons_tel = rq.get(tel_url)
+            html_tel = respons_tel.text
+            soup_tel = bs(html_tel, 'lxml')
+            tel_num_tag = soup_tel.select_one(
+                SELECTOR['tel'][store_url_data[0]])
+            tel_num = tel_num_tag.get_text() if tel_num_tag != None else None
+            #tel_num = tel_num_tag.get_text()
+            tel_num = str(tel_num)
+            tel_num = tel_num.replace(' ', "")
+            print("TEL : " + tel_num)
         except:
-            print("EXTRACT Exception")
+            tel_num = None
             pass
+            # ヘッダー画像の有無
+        head_img_tag = soup.select_one(SELECTOR['header_img'][store_url_data[0]])    
+        head_img_yn = "有" if head_img_tag != None else "無"
+
+        catch_copy_tag = soup.select_one(SELECTOR['catchcopy'][store_url_data[0]])
+        catch_copy = catch_copy_tag.get_text() if catch_copy_tag != None else None
+        #catch_copy = catch_copy_tag.get_text()
+        pankuzu_tag = soup.select(SELECTOR['pankuzu'][store_url_data[0]])
+        pankuzu = ""
+        for pan in pankuzu_tag:
+            pankuzu += pan.get_text() if pan != None else ""
+        print(pankuzu)
+
+        slide_img_tag = soup.select(
+            SELECTOR['slide_img'][store_url_data[0]])
+        slide_cnt = len(slide_img_tag)
+    
+    #append data_list
+        data_list[0] = store_url_data[0]
+        data_list[1] = store_name
+        data_list[2] = st_name_kana
+        data_list[3] = tel_num
+        jis_code = self.call_jis_code(store_url_data[1])
+        data_list[4] = jis_code
+        data_list[5] = prefecture
+        data_list[6] = municipality
+        data_list[7] = store_url_data[2]
+        data_list[8] = self.__scrap_day()
+        data_list[12] = pankuzu
+        data_list[15] = slide_cnt
+        data_list[16] = catch_copy
+        data_list[13] = head_img_yn 
+
+        for j in range(2, len(table_value)):
+            for row, menu in zip(self.table_menu.keys(), self.table_menu.values()):  
+                if table_menu[j].get_text() == menu:
+                    data_list[row-1] = table_value[j].get_text()
+                    break
+        
         return data_list
 
     def call_jis_code(self, key):

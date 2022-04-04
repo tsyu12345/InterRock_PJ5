@@ -10,19 +10,21 @@ from typing import Final as const
         # "エステサロン":"セレクター"
         # }
     # }
+    
+#TODO:tableのセレクターが間違っている場合があるので、その対応をする。
 
 SELECTOR:const[dict[str, dict[str, str]]]  = {
-    "table_menu": {
-            "ヘアサロン":"#mainContents > div:nth-child(11) > table > tbody > tr > th",
-            "ネイル・まつげサロン":"#mainContents > div:nth-child(6) > table > tbody > tr > th",
-            "リラクサロン":"#mainContents > div:nth-child(10) > table > tbody > tr > th",
-            "エステサロン":"#mainContents > div:nth-child(10) > table > tbody > tr > th",
+    "table_menu": {            
+            "ヘアサロン":"#mainContents > div.mT30 > table.slnDataTbl > tbody > tr > td",
+            "ネイル・まつげサロン":"#mainContents > div.mT30 > table.wFull  > tbody > tr > th",
+            "リラクサロン":"#mainContents > div.mT30 > table.wFull > tbody > tr > th",
+            "エステサロン":"#mainContents > div:mT30 > table.wFull > tbody > tr > th",
         },
         "table_value": {
-            "ヘアサロン":"#mainContents > div:nth-child(11) > table > tbody > tr > td",
-            "ネイル・まつげサロン":"#mainContents > div:nth-child(6) > table > tbody > tr > td",
-            "リラクサロン":"#mainContents > div:nth-child(10) > table > tbody > tr > td",
-            "エステサロン":"#mainContents > div:nth-child(10) > table > tbody > tr > td"
+            "ヘアサロン":"#mainContents > div.mT30 > table.slnDataTbl > tbody > tr > td",
+            "ネイル・まつげサロン":"#mainContents > div.mT30 > table.wFull > tbody > tr > td",
+            "リラクサロン":"#mainContents > div.mT30 > table.wFull > tbody > tr > td",
+            "エステサロン":"#mainContents > div.mT30 > table.wFull > tbody > tr > td"
         },
         "store_name": {
             "ヘアサロン":"#mainContents > div.detailHeader.cFix.pr > div > div.pL10.oh.hMin120 > div > p.detailTitle > a",
