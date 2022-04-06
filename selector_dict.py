@@ -11,7 +11,6 @@ from typing import Final as const
         # }
     # }
     
-#TODO:tableのセレクターが間違っている場合があるので、その対応をする。
 
 SELECTOR:const[dict[str, dict[str, str]]]  = {
     "table_menu": {            
