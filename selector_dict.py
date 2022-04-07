@@ -14,7 +14,7 @@ from typing import Final as const
 
 SELECTOR:const[dict[str, dict[str, str]]]  = {
     "table_menu": {            
-            "ヘアサロン":"#mainContents > div.mT30 > table.slnDataTbl > tbody > tr > td",
+            "ヘアサロン":"#mainContents > div.mT30 > table.slnDataTbl > tbody > tr > th",
             "ネイル・まつげサロン":"#mainContents > div.mT30 > table.wFull > tbody > tr > th",
             "リラクサロン":"#mainContents > div.mT30 > table.wFull > tbody > tr > th",
             "エステサロン":"#mainContents > div.mT30 > table.wFull > tbody > tr > th",
