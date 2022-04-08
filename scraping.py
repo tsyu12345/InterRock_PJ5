@@ -323,9 +323,9 @@ class ScrapingInfomation(ScrapingURL):
         st_name_kana = st_name_kana_tag.get_text() if st_name_kana_tag != None else None
         #st_name_kana = st_name_kana_tag.get_text()
         print("店名カナ：" + st_name_kana)
-        try:
+        try: #TODO:TELの抽出ができない問題の修正
             tel_tag = soup.select_one(
-                'div.mT30 > table > tbody > tr > td > a')
+                SELECTOR['tel_link_tag'][store_url_data[0]])
             tel_url = tel_tag.get('href')
             respons_tel = rq.get(tel_url)
             html_tel = respons_tel.text

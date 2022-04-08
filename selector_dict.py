@@ -37,8 +37,15 @@ SELECTOR:const[dict[str, dict[str, str]]]  = {
             "リラクサロン":"#mainContents > div.detailHeader.cFix.pr > div > div.pL10.oh > div > p.fs10.fgGray",
             "エステサロン":"#mainContents > div.detailHeader.cFix.pr > div > div.pL10.oh > div > p.fs10.fgGray"
         },
+        #TODO:TELの抽出ができない問題の修正
+        "tel_link_tag": {
+            "ヘアサロン":"#mainContents > div.mT30 > table > tbody > tr:nth-child(1) > td > a",
+            "ネイル・まつげサロン":"#mainContents > div.mT30 > table > tbody > tr:nth-child(1) > td > a",
+            "リラクサロン":"#mainContents > div.mT30 > table > tbody > tr:nth-child(1) > td > a",
+            "エステサロン":"#mainContents > div.mT30 > table > tbody > tr:nth-child(1) > td > a"
+        },
         "tel": {
-            "ヘアサロン":"#mainContents > table > tbody > tr > td",
+            "ヘアサロン":"mainContents > table.wFull.bdCell.pCell10.mT1 > td.fs16.b",
             "ネイル・まつげサロン":"#mainContents > table > tbody > tr > td",
             "リラクサロン":"#mainContents > table > tbody > tr > td",
             "エステサロン":"#mainContents > table > tbody > tr > td"
