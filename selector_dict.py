@@ -45,10 +45,10 @@ SELECTOR:const[dict[str, dict[str, str]]]  = {
             "エステサロン":"#mainContents > div.mT30 > table > tbody > tr:nth-child(1) > td > a"
         },
         "tel": {
-            "ヘアサロン":"mainContents > table.wFull.bdCell.pCell10.mT1 > td.fs16.b",
-            "ネイル・まつげサロン":"#mainContents > table > tbody > tr > td",
-            "リラクサロン":"#mainContents > table > tbody > tr > td",
-            "エステサロン":"#mainContents > table > tbody > tr > td"
+            "ヘアサロン":"td.fs16.b",
+            "ネイル・まつげサロン":"td.fs16.b",
+            "リラクサロン":"td.fs16.b",
+            "エステサロン":"td.fs16.b"
         },
         
         "pankuzu": {
