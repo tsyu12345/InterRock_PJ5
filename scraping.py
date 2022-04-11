@@ -1,3 +1,7 @@
+
+from __future__ import annotations
+from selector_dict import SELECTOR
+
 #from multiprocessing.pool import ApplyResult
 #import queue
 #from typing import Tuple
@@ -21,7 +25,9 @@ import re
 import requests as rq
 import sys
 import os
-import subprocess
+
+
+#TODO:抽出タグのセレクタを更新する。
 
 class ScrapingURL(object):
     def __init__(self, path, row_counter, sync_data_list):
@@ -74,16 +80,31 @@ class ScrapingURL(object):
         self.sub_driver.get("https://beauty.hotpepper.jp/top/")  # top page
         sr_class = self.sub_driver.find_element_by_link_text(store_junle)#ジャンル選択
         sr_class.click()
-        wait.until(EC.visibility_of_element_located((By.ID, "freeWordSearch1")))
-        search = self.sub_driver.find_element_by_id('freeWordSearch1')
-        search.send_keys(area + Keys.ENTER)
-        wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, "p.pa.bottom0.right0")))
-        result_pages = self.sub_driver.find_element_by_css_selector('p.pa.bottom0.right0').text
-        page_num = re.split('[/ ]', result_pages)
-        pages = re.sub(r"\D", "", page_num[1])
-        print("pages : " + pages)
-        self.page_count = int(pages)
-        for i in range(int(pages)):
+        wait.until(EC.presence_of_all_elements_located)
+        #FIXED:[hotfix/LackExtract]なぜかsend_keysがうまく働いていない気がする。inputの文字列が空のままであることを確認。
+        #search.send_keys(area)
+        #[hotfix/LackExtract]:send_keysで渡したした文字列が入力されない場合がある。
+        #下記で、JavaScriptを使って入力する。
+        javascript = "document.getElementById('freeWordSearch1').value = '" + area + "';"
+        self.sub_driver.execute_script(javascript)
+        
+        search_execute_btn = self.sub_driver.find_element_by_css_selector('input.searchButton.cS.sbmF.fgClear')
+        search_execute_btn.click()
+        
+        # wait.until(EC.visibility_of_all_elements_located)
+        #ページ数タグのセレクタ辞書
+        selector_dict = {
+            "ヘアサロン":"#mainContents > div.mT20.bgWhite > div.preListHead > div > p.pa.bottom0.right0",
+            "ネイル・まつげサロン": "#mainContents > div.mT15 > div.preListHead > div > p.pa.bottom0.right0",
+            "リラクサロン": "#mainContents > div.mT15 > div.preListHead > div > p.pa.bottom0.right0",
+            "エステサロン": "#mainContents > div.mT15 > div.preListHead > div > p.pa.bottom0.right0"
+        }
+        wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, selector_dict[store_junle])))
+        
+        html = self.sub_driver.page_source
+        self.page_count = self.__get_page_count(html, selector_dict[store_junle])
+        
+        for i in range(1, self.page_count+1):
             if i % 100 == 0 and i > 0:
                 cur_url = self.sub_driver.current_url
                 self.sub_driver.quit()
@@ -119,14 +140,27 @@ class ScrapingURL(object):
                 print(self.row_counter)
                 #self.book.save(self.path)
                 #Issue:↑で一時保存するとinfo_scrap()との衝突するのかPermissionErrorが発生する場合がある。
-                try:
-                    pre_url = self.sub_driver.current_url
-                    #pre_index = i
-                    next_btn = self.sub_driver.find_element_by_link_text("次へ")
-                    next_btn.click()
-                    wait.until(EC.visibility_of_all_elements_located)
-                except NoSuchElementException:
-                    break
+                
+                #TODO:リトライ処理のfor文を書く
+                
+                pre_url = self.sub_driver.current_url
+                
+                #次ページへ進む
+                #[LackExtract]:次のページのボタンが表示されているのに、次のページが表示されない場合がある。
+                #URLのクエリ―を更新して、次のページに移動することにする。
+                now_url:str = self.sub_driver.current_url.replace("&pn=" + str(i), "") #古いクエリ―を削除
+                next_query:str = '&pn=' + str(i+1)
+                next_url:str = now_url + next_query #新しいクエリ―を末尾に追加
+                print(next_url)
+                self.sub_driver.get(next_url) #次のページに移動
+                
+                #next_btn_tag = self.sub_driver.find_element_by_css_selector('a.iS.arrowPagingR')
+                #next_btn_tag.click()
+                #next_btn = self.sub_driver.find_element_by_link_text("次へ")
+                #next_btn.click()
+                
+                wait.until(EC.visibility_of_all_elements_located)
+
             except (WebDriverException, TimeoutException):
                 #self.book.save(self.path)
                 self.sub_driver.quit()
@@ -146,8 +180,32 @@ class ScrapingURL(object):
         print("search complete")
         self.sub_driver.quit()
         #driver.close()
+        
+    def __get_page_count(self, html:str, selector:str)->int:
+        """_summary_
+        hotfix/LackExtract:店舗検索ページにて、検索ページ数のエレメントがvisibleなのにかかわらず、たまに抽出できない不具合あり。\n
+        その対応策で、ページ全体のHTMLをdriverからロードし、そのHTML変数からページ数の取得を試みる。
+        Args:
+            html (str): html文字列
 
+        Returns:
+            int: 結果のページ数
+        """
+        soup = bs(html, 'lxml')
+        #mainContents > div.mT20.bgWhite > div.preListHead > div > p.pa.bottom0.right0
+        counter_elm = soup.select_one(selector)
+        print(counter_elm)
+        counter_text:str = counter_elm.text if counter_elm is not None else ""
+        page_num = re.split('[/ ]', counter_text)
+        pages = re.sub(r"\D", "", page_num[1])
+        print("pages : " + pages)
+        return int(pages)
+        
+        
 class ScrapingInfomation(ScrapingURL):
+    
+
+    
     def __init__(self, path, row_counter, url_list_data, end_count, info_datas):
         """
         path : WorkSheetPath \n
@@ -227,18 +285,21 @@ class ScrapingInfomation(ScrapingURL):
         return data_list
 
     def __extraction(self, html, store_url_data):
+        #TODO:タグ文字列を辞書のキーに書き換える。
         """
         HTMLを受け取り、情報を抽出,結果のリストを返す。
         """
         data_list = self.__create_data_list(31)
         soup = bs(html, 'lxml')
+        
         table_value = soup.select(
-            'div.mT30 > table > tbody > tr > td')
+            SELECTOR['table_value'][store_url_data[0]])
         table_menu = soup.select(
-            'div.mT30 > table > tbody > tr > th')
-          # 住所の抽出（少々処理があるため別で書き出す）
+            SELECTOR['table_menu'][store_url_data[0]])
+        # 住所の抽出（少々処理があるため別で書き出す）
         pref_tf = True
         prefecture = ""
+        municipality:str = ""
         for j, e in enumerate(table_menu):
             if e.get_text() == "住所":
                 all_address = table_value[j].get_text()
@@ -249,6 +310,7 @@ class ScrapingInfomation(ScrapingURL):
                 prefecture = prefecture_search.group()  # 県名
                 print(prefecture)
                 if prefecture != store_url_data[1]:
+                    print("prefecture is not match" + store_url_data[1])
                     #self.url_list.remove(store_url_data)
                     return []
                     """
@@ -260,72 +322,72 @@ class ScrapingInfomation(ScrapingURL):
                 municipality = address_low[1]  # それ以降
                 break
         # 指定エリアでないとき、下記処理を行わない
-        try:
-            store_name_tag = soup.select_one('p.detailTitle > a')
-            store_name = store_name_tag.get_text() if store_name_tag != None else None
-            #store_name = store_name_tag.get_text()
-            print("店名：" + store_name)
-            st_name_kana_tag = soup.select_one(
-                'div > p.fs10.fgGray')
-            st_name_kana = st_name_kana_tag.get_text() if st_name_kana_tag != None else None
-            #st_name_kana = st_name_kana_tag.get_text()
-            print("店名カナ：" + st_name_kana)
-            try:
-                tel_tag = soup.select_one(
-                    'div.mT30 > table > tbody > tr > td > a')
-                tel_url = tel_tag.get('href')
-                respons_tel = rq.get(tel_url)
-                html_tel = respons_tel.text
-                soup_tel = bs(html_tel, 'lxml')
-                tel_num_tag = soup_tel.select_one(
-                    'table > tr > td')
-                tel_num = tel_num_tag.get_text() if tel_num_tag != None else None
-                #tel_num = tel_num_tag.get_text()
-                tel_num = str(tel_num)
-                tel_num = tel_num.replace(' ', "")
-                print("TEL : " + tel_num)
-            except:
-                tel_num = None
-                pass
-                # ヘッダー画像の有無
-            head_img_tag = soup.select_one('div.slnHeaderSliderPhoto.jscViewerPhoto')    
-            head_img_yn = "有" if head_img_tag != None else "無"
-
-            catch_copy_tag = soup.select_one('div > p > b > strong')
-            catch_copy = catch_copy_tag.get_text() if catch_copy_tag != None else None
-            #catch_copy = catch_copy_tag.get_text()
-            pankuzu_tag = soup.select('#preContents > ol > li')
-            pankuzu = ""
-            for pan in pankuzu_tag:
-                pankuzu += pan.get_text() if pan != None else ""
-            print(pankuzu)
-
-            slide_img_tag = soup.select(
-                'div.slnTopImgCarouselWrap.jscThumbWrap > ul > li')
-            slide_cnt = len(slide_img_tag)
         
-        #append data_list
-            data_list[0] = store_url_data[0]
-            data_list[1] = store_name
-            data_list[2] = st_name_kana
-            data_list[3] = tel_num
-            data_list[4] = jis_code
-            data_list[5] = prefecture
-            data_list[6] = municipality
-            data_list[7] = store_url_data[2]
-            data_list[8] = self.__scrap_day()
-            data_list[12] = pankuzu
-            data_list[15] = slide_cnt
-            data_list[16] = catch_copy
-            data_list[13] = head_img_yn 
-
-            for j in range(2, len(table_value)):
-                for row, menu in zip(self.table_menu.keys(), self.table_menu.values()):  
-                    if table_menu[j].get_text() == menu:
-                        data_list[row-1] = table_value[j].get_text()
-                        break
+        store_name_tag = soup.select_one(SELECTOR['store_name'][store_url_data[0]])
+        store_name = store_name_tag.get_text() if store_name_tag != None else None
+        #store_name = store_name_tag.get_text()
+        print("店名：" + store_name)
+        st_name_kana_tag = soup.select_one(
+            SELECTOR['stname_kana'][store_url_data[0]])
+        st_name_kana = st_name_kana_tag.get_text() if st_name_kana_tag != None else None
+        #st_name_kana = st_name_kana_tag.get_text()
+        print("店名カナ：" + st_name_kana)
+        try: #TODO:TELの抽出ができない問題の修正
+            tel_tag = soup.select_one(
+                SELECTOR['tel_link_tag'][store_url_data[0]])
+            tel_url = tel_tag.get('href')
+            respons_tel = rq.get(tel_url)
+            html_tel = respons_tel.text
+            soup_tel = bs(html_tel, 'lxml')
+            tel_num_tag = soup_tel.select_one(
+                SELECTOR['tel'][store_url_data[0]])
+            tel_num = tel_num_tag.get_text() if tel_num_tag != None else None
+            #tel_num = tel_num_tag.get_text()
+            tel_num = str(tel_num)
+            tel_num = tel_num.replace(' ', "")
+            print("TEL : " + tel_num)
         except:
+            tel_num = None
             pass
+            # ヘッダー画像の有無
+        head_img_tag = soup.select_one(SELECTOR['header_img'][store_url_data[0]])    
+        head_img_yn = "有" if head_img_tag != None else "無"
+
+        catch_copy_tag = soup.select_one(SELECTOR['catchcopy'][store_url_data[0]])
+        catch_copy = catch_copy_tag.get_text() if catch_copy_tag != None else None
+        #catch_copy = catch_copy_tag.get_text()
+        pankuzu_tag = soup.select(SELECTOR['pankuzu'][store_url_data[0]])
+        pankuzu = ""
+        for pan in pankuzu_tag:
+            pankuzu += pan.get_text() if pan != None else ""
+        print(pankuzu)
+
+        slide_img_tag = soup.select(
+            SELECTOR['slide_img'][store_url_data[0]])
+        slide_cnt = len(slide_img_tag)
+    
+    #append data_list
+        data_list[0] = store_url_data[0]
+        data_list[1] = store_name
+        data_list[2] = st_name_kana
+        data_list[3] = tel_num
+        jis_code = self.call_jis_code(store_url_data[1])
+        data_list[4] = jis_code
+        data_list[5] = prefecture
+        data_list[6] = municipality
+        data_list[7] = store_url_data[2]
+        data_list[8] = self.__scrap_day()
+        data_list[12] = pankuzu
+        data_list[15] = slide_cnt
+        data_list[16] = catch_copy
+        data_list[13] = head_img_yn 
+
+        for j in range(2, len(table_value)):
+            for row, menu in zip(self.table_menu.keys(), self.table_menu.values()):  
+                if table_menu[j].get_text() == menu:
+                    data_list[row-1] = table_value[j].get_text()
+                    break
+        
         return data_list
 
     def call_jis_code(self, key):
@@ -390,7 +452,7 @@ class ScrapingInfomation(ScrapingURL):
         hour = str(dt_now.hour)
         min = str(dt_now.minute)
         data_day = year + "," + month + day + "," + hour + min
-        print(data_day)
+        #print(data_day)
         return data_day
 
 
@@ -517,12 +579,12 @@ class Implementation():
                         self.info_datas_writing()
                         break
                     if result1.ready():
-                        print("result1 end")
+                        #print("result1 end")
                         async_result[0] = True
                         self.list1.clear()
                         
                     if result2.ready():
-                        print("result2 end")
+                        #print("result2 end")
                         async_result[1] = True
                         self.list2.clear()        
 
@@ -550,7 +612,7 @@ class Implementation():
                 self.list1.append(self.scrap_url_list.pop(0))
             else:
                 self.list2.append(self.scrap_url_list.pop(0))
-       
+    
     def cancel(self):
         try:
             self.info_datas_writing()
