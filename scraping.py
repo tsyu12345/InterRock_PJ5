@@ -81,7 +81,7 @@ class ScrapingURL(object):
         sr_class = self.sub_driver.find_element_by_link_text(store_junle)#ジャンル選択
         sr_class.click()
         searchBoxDomId = "freeWordSearch1"
-        wait.until(EC.presence_of_element_located((By.ID, searchBoxDomId)))
+        wait.until(EC.presence_of_element_located((By.ID, searchBoxDomId))) #FIXME:TIMEOUT_EXCEPTION
         search = self.sub_driver.find_element_by_id(searchBoxDomId)
         #FIXED:[hotfix/LackExtract]なぜかsend_keysがうまく働いていない気がする。inputの文字列が空のままであることを確認。
         #search.send_keys(area)
@@ -106,7 +106,7 @@ class ScrapingURL(object):
         html = self.sub_driver.page_source
         self.page_count = self.__get_page_count(html, selector_dict[store_junle])
         
-        for i in range(self.page_count):
+        for i in range(1, self.page_count+1):
             if i % 100 == 0 and i > 0:
                 cur_url = self.sub_driver.current_url
                 self.sub_driver.quit()
@@ -144,16 +144,25 @@ class ScrapingURL(object):
                 #Issue:↑で一時保存するとinfo_scrap()との衝突するのかPermissionErrorが発生する場合がある。
                 
                 #TODO:リトライ処理のfor文を書く
-                try:
-                    pre_url = self.sub_driver.current_url
-                    #pre_index = i
-                    next_btn_tag = self.sub_driver.find_element_by_css_selector('a.iS.arrowPagingR')
-                    next_btn_tag.click()
-                    #next_btn = self.sub_driver.find_element_by_link_text("次へ")
-                    #next_btn.click()
-                    wait.until(EC.visibility_of_all_elements_located)
-                except NoSuchElementException:
-                    break
+                
+                pre_url = self.sub_driver.current_url
+                
+                #次ページへ進む
+                #[LackExtract]:次のページのボタンが表示されているのに、次のページが表示されない場合がある。
+                #URLのクエリ―を更新して、次のページに移動することにする。
+                now_url:str = self.sub_driver.current_url.replace("&pn=" + str(i), "") #古いクエリ―を削除
+                next_query:str = '&pn=' + str(i+1)
+                next_url:str = now_url + next_query #新しいクエリ―を末尾に追加
+                print(next_url)
+                self.sub_driver.get(next_url) #次のページに移動
+                
+                #next_btn_tag = self.sub_driver.find_element_by_css_selector('a.iS.arrowPagingR')
+                #next_btn_tag.click()
+                #next_btn = self.sub_driver.find_element_by_link_text("次へ")
+                #next_btn.click()
+                
+                wait.until(EC.visibility_of_all_elements_located)
+
             except (WebDriverException, TimeoutException):
                 #self.book.save(self.path)
                 self.sub_driver.quit()
