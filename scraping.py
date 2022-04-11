@@ -147,8 +147,10 @@ class ScrapingURL(object):
                 try:
                     pre_url = self.sub_driver.current_url
                     #pre_index = i
-                    next_btn = self.sub_driver.find_element_by_link_text("次へ")
-                    next_btn.click()
+                    next_btn_tag = self.sub_driver.find_element_by_css_selector('a.iS.arrowPagingR')
+                    next_btn_tag.click()
+                    #next_btn = self.sub_driver.find_element_by_link_text("次へ")
+                    #next_btn.click()
                     wait.until(EC.visibility_of_all_elements_located)
                 except NoSuchElementException:
                     break
