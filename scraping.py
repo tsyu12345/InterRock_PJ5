@@ -80,9 +80,7 @@ class ScrapingURL(object):
         self.sub_driver.get("https://beauty.hotpepper.jp/top/")  # top page
         sr_class = self.sub_driver.find_element_by_link_text(store_junle)#ジャンル選択
         sr_class.click()
-        searchBoxDomId = "freeWordSearch1"
-        wait.until(EC.presence_of_element_located((By.ID, searchBoxDomId))) #FIXME:TIMEOUT_EXCEPTION
-        search = self.sub_driver.find_element_by_id(searchBoxDomId)
+        wait.until(EC.presence_of_all_elements_located)
         #FIXED:[hotfix/LackExtract]なぜかsend_keysがうまく働いていない気がする。inputの文字列が空のままであることを確認。
         #search.send_keys(area)
         #[hotfix/LackExtract]:send_keysで渡したした文字列が入力されない場合がある。
