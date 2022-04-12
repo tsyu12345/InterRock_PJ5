@@ -74,17 +74,27 @@ class ScrapingURL(object):
 
     def __url_scrap(self, area, store_junle):
         #MAX_RETRY = 3
-        self.sub_driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
-        print("starting ChromeDriver.exe....")
-        wait = WebDriverWait(self.sub_driver, 180)#Max wait time(second):180s
-        self.sub_driver.get("https://beauty.hotpepper.jp/top/")  # top page
-        sr_class = self.sub_driver.find_element_by_link_text(store_junle)#ジャンル選択
-        sr_class.click()
-        #FIXED:[hotfix/LackExtract]なぜかsend_keysがうまく働いていない気がする。inputの文字列が空のままであることを確認。
-        #search.send_keys(area)
-        #[hotfix/LackExtract]:send_keysで渡したした文字列が入力されない場合がある。
-        #下記で、JavaScriptを使って入力する。
-        wait.until(EC.presence_of_element_located((By.ID, 'freeWordSearch1')))
+        for retry in range(2):
+            try:
+                self.sub_driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
+                print("starting ChromeDriver.exe....")
+                wait = WebDriverWait(self.sub_driver, 180)#Max wait time(second):180s
+                self.sub_driver.get("https://beauty.hotpepper.jp/top/")  # top page
+                sr_class = self.sub_driver.find_element_by_link_text(store_junle)#ジャンル選択
+                sr_class.click()
+                #FIXED:[hotfix/LackExtract]なぜかsend_keysがうまく働いていない気がする。inputの文字列が空のままであることを確認。
+                #search.send_keys(area)
+                #[hotfix/LackExtract]:send_keysで渡したした文字列が入力されない場合がある。
+                #下記で、JavaScriptを使って入力する。
+                wait.until(EC.presence_of_element_located((By.ID, 'freeWordSearch1')))
+            except TimeoutException:
+                print("TimeoutException. Retry.")
+                self.sub_driver.delete_all_cookies()
+                self.sub_driver.quit()
+                time.sleep(300) # wait 5min
+            else:
+                break
+                    
         javascript = "document.getElementById('freeWordSearch1').value = '" + area + "';"
         self.sub_driver.execute_script(javascript)
         
