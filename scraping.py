@@ -75,10 +75,10 @@ class ScrapingURL(object):
     def __url_scrap(self, area, store_junle):
         #MAX_RETRY = 3
         for retry in range(2):
+            self.sub_driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
+            print("starting ChromeDriver.exe....")
+            wait = WebDriverWait(self.sub_driver, 180)#Max wait time(second):180s
             try:
-                self.sub_driver = webdriver.Chrome(executable_path=self.driver_path, options=self.options)
-                print("starting ChromeDriver.exe....")
-                wait = WebDriverWait(self.sub_driver, 180)#Max wait time(second):180s
                 self.sub_driver.get("https://beauty.hotpepper.jp/top/")  # top page
                 sr_class = self.sub_driver.find_element_by_link_text(store_junle)#ジャンル選択
                 sr_class.click()
@@ -98,7 +98,8 @@ class ScrapingURL(object):
         javascript = "document.getElementById('freeWordSearch1').value = '" + area + "';"
         self.sub_driver.execute_script(javascript)
         
-        search_execute_btn = self.sub_driver.find_element_by_css_selector('input.searchButton.cS.sbmF.fgClear')
+        #FIXME:[20220507]:NoSuchElementExceptionが発生する。
+        search_execute_btn = self.sub_driver.find_element_by_css_selector('input.searchButton') 
         search_execute_btn.click()
         
         # wait.until(EC.visibility_of_all_elements_located)
@@ -109,6 +110,8 @@ class ScrapingURL(object):
             "リラクサロン": "#mainContents > div.mT15 > div.preListHead > div > p.pa.bottom0.right0",
             "エステサロン": "#mainContents > div.mT15 > div.preListHead > div > p.pa.bottom0.right0"
         }
+        
+        wait = WebDriverWait(self.sub_driver, 180)#Max wait time(second):180s #[20220507]Unbound対策でここにwaitオブジェクトを再宣言
         wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, selector_dict[store_junle])))
         
         html = self.sub_driver.page_source
