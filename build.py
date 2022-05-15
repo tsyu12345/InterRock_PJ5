@@ -8,12 +8,13 @@ class BuildParamInterface():
     ビルドに使用するパラメーター
     """
     
-    def __init__(self, target:str, icon: str|None = None, binarys: list[str]|None = None, compile_one_file:bool|None=False, hidden_import:list[str]|None=None) -> None:
+    def __init__(self, target:str, no_console: bool = True,icon: str|None = None, binarys: list[str]|None = None, compile_one_file:bool|None=False, hidden_import:list[str]|None=None) -> None:
         self.TARGET_FILE:str = target
         self.ICON_PATH:str|None = icon
         self.BINARYS:list[str]|None = binarys
         self.DO_ONEFILE:bool|None = compile_one_file
         self.HIDDEN_IMPORTS:list[str]|None = hidden_import
+        self.NO_CONSOLE:bool = no_console
         
 
 
@@ -41,7 +42,8 @@ class AppBuild():
             command += " --icon=" + self.param.ICON_PATH
         if self.param.DO_ONEFILE is True:
             command += " --onefile"
-            
+        if self.param.NO_CONSOLE:
+            command += " --noconsole"
         if self.param.HIDDEN_IMPORTS is not None:
             for module in self.param.HIDDEN_IMPORTS:
                 command += " --hidden-import " + module + " "
@@ -100,7 +102,8 @@ if __name__ == "__main__":
     
     buildParam = BuildParamInterface(
         "main.py",
-        icon="1258d548c5548ade5fb2061f64686e40_xxo.ico",
+        no_console=False,
+        icon="e6832bee44cfe3a3844f0a2587ee4bc4_xxo.ico",
         binarys=[
             "chrome-win",
             "chromedriver_win32"
