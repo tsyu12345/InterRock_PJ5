@@ -98,8 +98,9 @@ class ScrapingURL(object):
         javascript = "document.getElementById('freeWordSearch1').value = '" + area + "';"
         self.sub_driver.execute_script(javascript)
         
-        #FIXME:[20220507]:NoSuchElementExceptionが発生する。
-        search_execute_btn = self.sub_driver.find_element_by_css_selector('input.searchButton') 
+        #FIXED:[20220507]:NoSuchElementExceptionが発生する。
+        search_execute_btn = self.sub_driver.find_element_by_css_selector("#jsiSearchBox > dd > input")
+        #search_execute_btn = self.sub_driver.find_element_by_css_selector('input.searchButton') 
         search_execute_btn.click()
         
         # wait.until(EC.visibility_of_all_elements_located)
